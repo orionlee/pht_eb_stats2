@@ -31,7 +31,7 @@ def _get_subject_ids_of_tag_page(tag, page, end_subject_id_exclusive=None, json=
     return res
 
 def get_subject_ids_of_tag(tag, page_start, page_end_inclusive, end_subject_id_exclusive=None, page_result_func=None):
-    kwargs_list=[dict(tag=tag, page=i, end_subject_id_exclusive=end_subject_id_exclusive) for i in range(page_start, page_end_inclusive+1)]
+    kwargs_list = [dict(tag=tag, page=i, end_subject_id_exclusive=end_subject_id_exclusive) for i in range(page_start, page_end_inclusive+1)]
     return bulk_process(_get_subject_ids_of_tag_page, kwargs_list, process_result_func=page_result_func)
 
 def get_subject_ids_of_tag_old(tag, page_start, page_end_inclusive, page_result_func=None):
@@ -47,7 +47,7 @@ def get_subject_ids_of_tag_old(tag, page_start, page_end_inclusive, page_result_
 def save_subject_ids_of_page(subject_ids, call_i, call_kwargs):
     out_path = Path("../data/pht_subj_ids.csv")
 
-    with open(out_path, "ab") as f:
+    with open(out_path, "a") as f:
         np.savetxt(f, subject_ids, fmt="%s")
 
     return out_path
