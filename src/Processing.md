@@ -34,3 +34,28 @@ Output: `../data/pht_subj_meta.csv`
 echo subject_id,tic_id,sector,img_id > ../data/pht_subj_meta.csv
 python pht_subj_meta.py
 ```
+
+### Subject Comments
+
+#### Comments raw data (as a staging area)
+
+Output: json files in directory `cache/comments/`
+
+```shell
+python pht_subj_comments.py
+```
+
+#### Process comments to produce per-comment summary (tags, etc.)
+
+Output: `cache/comments_summary_per_comment.csv`
+TBD
+
+#### Process comments to produce per-subject summary (tags, etc.)
+
+Output: `cache/comments_summary_per_subject.csv`
+TBD
+
+#### Process comments to produce per-TIC summary (tags, etc.)
+
+Output: `cache/comments_summary_per_tic.csv`
+TBD
