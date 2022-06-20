@@ -1,4 +1,7 @@
+from collections.abc import Mapping, Sequence
+import csv
 import json
+import os
 
 import numpy as np
 import pandas as pd
@@ -58,3 +61,36 @@ def json_np_dump(obj, fp, **kwargs):
     """JSON dump that supports numpy data types"""
     kwargs["cls"] = NpEncoder
     return json.dump(obj, fp, **kwargs)
+
+
+def to_csv(data, out_path, mode="a", fieldnames=None):
+    # parameters processing
+    if fieldnames is None:
+        if isinstance(data, Mapping):
+            fieldnames = data.keys()
+        elif isinstance(data, Sequence):
+            fieldnames = data[0].keys()
+        else:
+            raise TypeError(f"Unsupported type for `data`: {type(dict)}")
+
+    def write_header_if_needed():
+        if (not mode.startswith("w")) and (os.path.exists(out_path)) and (os.path.getsize(out_path) > 0):
+            return False  # the file has content. no need to write header
+        header = ",".join(fieldnames)
+        header = header + "\n"
+        with open(out_path, mode, encoding="utf-8") as f:
+            f.write(header)
+
+    def to_csv_of_dict(a_dict):
+        with open(out_path, mode, encoding="utf-8") as f:
+            csv_writer = csv.DictWriter(f, fieldnames, dialect="unix")
+            csv_writer.writerow(a_dict)
+
+    # Main logic
+    write_header_if_needed()
+    if isinstance(data, Mapping):
+        to_csv_of_dict(data)
+    elif isinstance(data, Sequence):
+        [to_csv_of_dict(a_dict) for a_dict in data]
+    else:
+        raise TypeError(f"Unsupported type for `data`: {type(dict)}")
