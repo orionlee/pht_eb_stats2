@@ -2,6 +2,7 @@ from collections.abc import Mapping, Sequence
 import csv
 import json
 import os
+import time
 
 import numpy as np
 import pandas as pd
@@ -17,24 +18,30 @@ def fetch_json(url):
     return r.json()
 
 
-def bulk_process(process_fn, process_kwargs_list, return_result=False, process_result_func=None, tqdm_kwargs=None):
+def bulk_process(process_fn, process_kwargs_list, return_result=False, process_result_func=None, tqdm_kwargs=None, num_retries=2, retry_wait_time_seconds=30):
     if tqdm_kwargs is None:
         tqdm_kwargs = dict()
 
     num_to_process = len(process_kwargs_list)
     res = []
     for i in tqdm(range(num_to_process), **tqdm_kwargs):
-        try:
-            i_res = process_fn(**process_kwargs_list[i])
-            if (return_result):
-                res.append(i_res)
-            else:
-                res.append(True) # indicate the process is a success, in case we support skipping those that lead to error
-            if process_result_func is not None:
-                process_result_func(i_res, i, process_kwargs_list[i])
-        except Exception as err:
-            print(f"Error in processing {i}th call. Arguments: {process_kwargs_list[i]}")
-            raise err
+        for try_num in range(1, num_retries + 1):
+            try:
+                i_res = process_fn(**process_kwargs_list[i])
+                if (return_result):
+                    res.append(i_res)
+                else:
+                    res.append(True) # indicate the process is a success, in case we support skipping those that lead to error
+                if process_result_func is not None:
+                    process_result_func(i_res, i, process_kwargs_list[i])
+                break
+            except BaseException as err:
+                print(f"Error in processing {i}th call. Arguments: {process_kwargs_list[i]}. Error: {type(err)} {err}")
+                if try_num < num_retries:
+                    print(f"Retry after {retry_wait_time_seconds} seconds for try #{try_num + 1}")
+                    time.sleep(retry_wait_time_seconds)
+                else:
+                    raise err
 
     return res
 
