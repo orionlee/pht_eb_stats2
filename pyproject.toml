@@ -20,6 +20,7 @@ pandas
 tqdm
 numpy
 ratelimit
+astroquery
 
 
 [tool.poetry.dev-dependencies]
