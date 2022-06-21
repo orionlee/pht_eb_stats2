@@ -5,7 +5,7 @@ import pht_subj_meta as pht_sm
 def save_tic_ids(**kwargs):
     out_path = "../data/pht_tic_ids.csv"
 
-    df = pht_sm.get_subject_meta_table(**kwargs)
+    df = pht_sm.load_subject_meta_table_from_file(**kwargs)
     res = df["tic_id"].unique()
     res.sort()
     res = res[res > 0]  # filter those without TIC IDs (-1 in the csv)

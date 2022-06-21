@@ -39,7 +39,7 @@ def save_comments_of_subject(subject_comments, call_i, call_kwargs):
         json_np_dump(subject_comments, f)
 
 
-def _get_subject_comments_of_id_from_cache(subject_id):
+def load_subject_comments_of_id_from_file(subject_id):
     with open(f"cache/comments/c{subject_id}.json", "r") as f:
         return json.load(f)
 

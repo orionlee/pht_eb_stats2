@@ -45,7 +45,7 @@ def save_meta_of_subject(subject_meta, call_i, call_kwargs):
         csv_writer.writerow(subject_meta)
 
 
-def get_subject_meta_table(table_csv_path="../data/pht_subj_meta.csv"):
+def load_subject_meta_table_from_file(table_csv_path="../data/pht_subj_meta.csv"):
     df = pd.read_csv(table_csv_path)
     return df
 

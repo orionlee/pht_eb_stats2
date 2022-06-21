@@ -1,7 +1,7 @@
 import re
 
 from common import *
-from pht_subj_comments import _get_subject_comments_of_id_from_cache
+from pht_subj_comments import load_subject_comments_of_id_from_file
 
 def _abbrev_bool(bool_val):
     if bool_val:
@@ -41,7 +41,7 @@ def _to_summary_of_comment(comment, subject_id):
 
 
 def to_comment_summaries_of_subject(id):
-    comments = _get_subject_comments_of_id_from_cache(id)
+    comments = load_subject_comments_of_id_from_file(id)
     return [_to_summary_of_comment(c, id) for c in comments["comments"]]
 
 
@@ -55,7 +55,7 @@ def save_comment_summaries(comment_summaries, call_i, call_kwargs):
     to_csv(comment_summaries, out_path, mode="a")
 
 
-def get_comment_summaries_table(table_csv_path="cache/comments_summary_per_comment.csv"):
+def load_comment_summaries_table_from_file(table_csv_path="cache/comments_summary_per_comment.csv"):
     df = pd.read_csv(
         table_csv_path,
         keep_default_na=False,  # so that empty string in tags won't be read as NaN
