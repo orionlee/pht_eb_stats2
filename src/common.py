@@ -45,10 +45,18 @@ def bulk_process(process_fn, process_kwargs_list, return_result=False, process_r
 
     return res
 
+
 def load_subject_ids_from_file(filepath="../data/pht_subj_ids.csv"):
     # use numpy array to make the processing downstream easier,
     # e.g., accessing last element by [-1] rather than the more cumbersome .iloc[-1]
     ids = pd.read_csv(filepath)["subject_id"].to_numpy()
+    return ids
+
+
+def load_tic_ids_from_file(filepath="../data/pht_tic_ids.csv"):
+    # use numpy array to make the processing downstream easier,
+    # e.g., accessing last element by [-1] rather than the more cumbersome .iloc[-1]
+    ids = pd.read_csv(filepath)["tic_id"].to_numpy()
     return ids
 
 
