@@ -4,6 +4,7 @@ import json
 import os
 import time
 
+from astropy.table import Table
 import numpy as np
 import pandas as pd
 import requests
@@ -78,7 +79,21 @@ def json_np_dump(obj, fp, **kwargs):
     return json.dump(obj, fp, **kwargs)
 
 
+def _df_to_csv(df, out_path, mode="a"):
+    if (not mode.startswith("w")) and (os.path.exists(out_path)) and (os.path.getsize(out_path) > 0):
+        header = False
+    else:
+        header = True
+    return df.to_csv(out_path, index=False, mode=mode, header=header)
+
+
 def to_csv(data, out_path, mode="a", fieldnames=None):
+    if isinstance(data, Table):
+        data = data.to_pandas()
+
+    if isinstance(data, pd.DataFrame):
+        return _df_to_csv(data, out_path, mode=mode)
+
     # parameters processing
     if fieldnames is None:
         if isinstance(data, Mapping):
