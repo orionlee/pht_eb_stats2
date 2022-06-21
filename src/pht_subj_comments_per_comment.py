@@ -25,7 +25,8 @@ def _to_summary_of_comment(comment, subject_id):
     # Process some of them to make csv export easier
     is_deleted = _abbrev_bool(is_deleted)
     body = re.sub(r"[\n\r\t]", " | ", body)  # replace characters problematic in a csv
-    tags_str = ",".join(tag_dict.values())
+    # a single string for tag list; normalize tag names (probably already done by Zooniverse, but just in case)
+    tags_str = ",".join(tag_dict.values()).lower()
 
     return dict(
         comment_id=comment_id,
