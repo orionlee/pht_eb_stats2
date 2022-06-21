@@ -14,7 +14,7 @@ PERIOD_IN_SECONDS = 30
 
 @sleep_and_retry
 @limits(calls=NUM_CALLS, period=PERIOD_IN_SECONDS)
-def _catalog_info_of_tics(tics, **kwargs):
+def _get_tic_meta_of_tics(tics, **kwargs):
     """Return the info of TICs in the TIC catalog
 
     For TIC table column description, see:
@@ -47,11 +47,11 @@ def get_and_save_tic_meta_of_all(chunk_size=1000, start_chunk=0, end_chunk_inclu
     # chunk 0: create a new csv, add header
     if start_chunk == 0:
         kwargs_list = [dict(tics=id_chunks[0])]
-        bulk_process(_catalog_info_of_tics, kwargs_list, process_result_func=lambda res, call_i, call_kwargs: save_tic_meta(res, csv_mode="w", csv_header=True))
+        bulk_process(_get_tic_meta_of_tics, kwargs_list, process_result_func=lambda res, call_i, call_kwargs: save_tic_meta(res, csv_mode="w", csv_header=True))
 
     # Process the rest of the chunks (append to the existing csv)
         kwargs_list = [dict(tics=ids) for ids in id_chunks[1:]]
-        bulk_process(_catalog_info_of_tics, kwargs_list, process_result_func=save_tic_meta)
+        bulk_process(_get_tic_meta_of_tics, kwargs_list, process_result_func=save_tic_meta)
 
 
 def load_tic_meta_table_from_file(csv_path="../data/tic_meta.csv"):
