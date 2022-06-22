@@ -1,22 +1,26 @@
+from astropy import units as u
+from astropy.coordinates import SkyCoord
+from astropy.table import Table
 from astroquery.simbad import Simbad
+from astroquery.xmatch import XMatch
 
 from ratelimit import limits, sleep_and_retry
 
 from common import *
+import tic_meta
 
 # throttle HTTP calls to MAST
 # somewhat large result set (~1000 rows), so I set a conservative throttle to be extra safe
 NUM_CALLS = 1
 PERIOD_IN_SECONDS = 20
 
-@sleep_and_retry
-@limits(calls=NUM_CALLS, period=PERIOD_IN_SECONDS)
-def _get_simbad_meta_of_tics(tics):
+def _get_simbad(add_typed_id=False):
     simbad = Simbad()
 
     simbad.remove_votable_fields('coordinates')
+    if add_typed_id:
+        simbad.add_votable_fields("typed_id")
     fields_to_add = [
-        "typed_id",
         "otypes",
         "v*",  # GCVS params, if any
         # fields for crossmatch purposes
@@ -33,18 +37,55 @@ def _get_simbad_meta_of_tics(tics):
         "ids",
         ]
     simbad.add_votable_fields(*fields_to_add)
+    return simbad
 
-    res = simbad.query_objects([f"TIC {id}" for id in tics])
-
-    # changed output result
+def _format_result(res):
+    # format output result
     res.rename_column("RA_d_ICRS_J2000_2000", "RA")
     res.rename_column("DEC_d_ICRS_J2000_2000", "DEC")
-    res.rename_column("TYPED_ID", "TIC_ID")
-    res["TIC_ID"] = [int(s.replace('TIC ', '')) for s in res["TIC_ID"]]
     # column "SCRIPT_NUMBER_ID": retained for now as it could be useful for troubleshooting
     # , as it is referenced by SIMBAD warnings/ errors.
 
+@sleep_and_retry
+@limits(calls=NUM_CALLS, period=PERIOD_IN_SECONDS)
+def _get_simbad_meta_of_tics(tics):
+    simbad = _get_simbad(add_typed_id=True)
+    res = simbad.query_objects([f"TIC {id}" for id in tics])
+    _format_result(res)
+    res.rename_column("TYPED_ID", "TIC_ID")
+    res["TIC_ID"] = [int(s.replace('TIC ', '')) for s in res["TIC_ID"]]
     return res
+
+
+def _get_simbad_meta_of_coordinates(ra, dec, coord_kwargs=dict(unit=u.deg, frame="icrs", equinox="J2000"), radius=2 * u.arcmin, max_rows_per_coord=5,):
+    coord = SkyCoord(ra=ra, dec=dec, **coord_kwargs)
+    simbad = _get_simbad(add_typed_id=True)
+    res = simbad.query_region(coord, radius=radius)
+    _format_result(res)
+    return res
+
+
+def xmatch_and_save_all_unmatched_tics():
+    """For TICs with no SIMBAD entry by TIC ID, crossmatch by coordinate to get the matching SIMBAD ids"""
+    out_path = "cache/simbad_tics_xmatch.csv"
+
+    df_simbad = load_simbad_meta_table_from_file(csv_path="cache/simbad_meta_by_ticid.csv")
+    # list of TIC ids not matched with no SIMBAD match
+    src_ticids = df_simbad[df_simbad["MAIN_ID"].isnull()][["TIC_ID"]]["TIC_ID"].to_numpy()
+
+    # for the TICs, find their RA/DEC from TIC metadata
+    df_tics = tic_meta.load_tic_meta_table_from_file()
+    df_tics = df_tics[df_tics["ID"].isin(src_ticids)]
+    src_tab = Table.from_pandas(df_tics[["ID", "ra", "dec"]])
+    src_tab.rename_column("ID", "TIC_ID")
+    src_tab.rename_column("ra", "TIC_RA")
+    src_tab.rename_column("dec", "TIC_DEC")
+
+    res = XMatch.query(cat1=src_tab, cat2="simbad", max_distance=180*u.arcsec, colRA1="TIC_RA", colDec1="TIC_DEC")
+
+    to_csv(res, out_path, mode="w")
+
+    res
 
 
 def _save_simbad_meta(meta_table, out_path):
@@ -80,7 +121,24 @@ def load_simbad_meta_table_from_file(csv_path="../data/simbad_meta.csv"):
     return df
 
 
+def _load_simbad_xmatch_table_from_file(csv_path="cache/simbad_tics_xmatch.csv", max_results_per_target=None):
+    df = pd.read_csv(csv_path)
+
+    if max_results_per_target is not None:
+        # for each TIC, select n closest one.
+        # based on: https://stackoverflow.com/a/41826756
+        df = df.sort_values("angDist", ascending=True).groupby("TIC_ID").head(max_results_per_target)
+
+    df = df.sort_values(["TIC_ID", "angDist"], ascending=True, )
+    df = df.reset_index(drop=True)
+
+    return df
+
+
 if __name__ =="__main__":
-    # process those that can be found by TIC id lookups
-    get_and_save_simbad_meta_of_all_by_tics()
-    # TODO: process the rest by coordinate search
+    # 1. process those that can be found by TIC id lookups
+    # get_and_save_simbad_meta_of_all_by_tics()
+
+    # 2. process the rest by coordinate search
+    xmatch_and_save_all_unmatched_tics()
+
