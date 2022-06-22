@@ -56,6 +56,14 @@ def _get_simbad_meta_of_tics(tics):
     res["TIC_ID"] = [int(s.replace('TIC ', '')) for s in res["TIC_ID"]]
     return res
 
+@sleep_and_retry
+@limits(calls=NUM_CALLS, period=PERIOD_IN_SECONDS)
+def _get_simbad_meta_of_ids(ids):
+    simbad = _get_simbad(add_typed_id=True)
+    res = simbad.query_objects(ids)
+    _format_result(res)
+    return res
+
 
 def _get_simbad_meta_of_coordinates(ra, dec, coord_kwargs=dict(unit=u.deg, frame="icrs", equinox="J2000"), radius=2 * u.arcmin, max_rows_per_coord=5,):
     coord = SkyCoord(ra=ra, dec=dec, **coord_kwargs)
@@ -81,6 +89,8 @@ def xmatch_and_save_all_unmatched_tics():
     src_tab.rename_column("ra", "TIC_RA")
     src_tab.rename_column("dec", "TIC_DEC")
 
+    # we just care about the main_id returned, as we will use teh main_id to query the up-to-date metadata from SIMBAD later
+    # I don't know how to tell XMatch to not include the other columns
     res = XMatch.query(cat1=src_tab, cat2="simbad", max_distance=180*u.arcsec, colRA1="TIC_RA", colDec1="TIC_DEC")
 
     to_csv(res, out_path, mode="w")
@@ -88,8 +98,8 @@ def xmatch_and_save_all_unmatched_tics():
     res
 
 
-def _save_simbad_meta(meta_table, out_path):
-    to_csv(meta_table, out_path, mode="a")
+def _save_simbad_meta(meta_table, out_path, mode="a"):
+    to_csv(meta_table, out_path, mode=mode)
 
 
 def get_and_save_simbad_meta_of_all_by_tics(chunk_size=1000, start_chunk=0, end_chunk_inclusive=None):
@@ -135,10 +145,42 @@ def _load_simbad_xmatch_table_from_file(csv_path="cache/simbad_tics_xmatch.csv",
     return df
 
 
+def get_and_save_simbad_meta_of_all_by_xmatch(max_results_per_target=5):
+    """For TICs not found by tic id lookup, use crossmatch result"""
+    out_path = "cache/simbad_meta_candidates_by_xmatch.csv"
+
+    df_xmatch = _load_simbad_xmatch_table_from_file(csv_path="cache/simbad_tics_xmatch.csv", max_results_per_target=max_results_per_target)
+
+    # for expedience, I make 1 call rather than splitting it into smaller chunks
+    # empirically, I know the result set size (~5000) is small enough to be done in 1 call.
+    res = _get_simbad_meta_of_ids(df_xmatch["main_id"])
+
+    # we lookup by main_id , so TYPED_ID is just redundant, we replace it with TIC_ID
+    # we cannot just copy df_xmatch["TIC_ID"] over because of edge cases that some lookups fail
+    #  (probably because the simbad data used by xmatch is out-of-date)
+    res.rename_column("TYPED_ID", "TIC_ID")
+    res["TIC_ID"] = [-1 for s in res["TIC_ID"]]
+    res["angDist"] = [-1.0 for s in res["TIC_ID"]]
+    for row in res:
+        main_id = row["MAIN_ID"]
+        xmatch_rows = df_xmatch[df_xmatch["main_id"] == main_id].reset_index(drop=True)
+        if len(xmatch_rows) > 0:
+            row["TIC_ID"] = xmatch_rows["TIC_ID"][0]
+            row["angDist"] = xmatch_rows["angDist"][0]
+        else:
+            print(f"WARN for SIMBAD entry {main_id}, cannot find TIC ID in crossmatch result unexpectedly.")
+
+    _save_simbad_meta(res, out_path, mode="w")
+    return
+
+
 if __name__ =="__main__":
     # 1. process those that can be found by TIC id lookups
     # get_and_save_simbad_meta_of_all_by_tics()
 
     # 2. process the rest by coordinate search
-    xmatch_and_save_all_unmatched_tics()
+    # 2a. use crossmatch to get a list of potential simbad objects
+    # xmatch_and_save_all_unmatched_tics()
+    # 2b. Use the list from crossmatch to get and save the simbad entries
+    get_and_save_simbad_meta_of_all_by_xmatch(max_results_per_target=5)
 
