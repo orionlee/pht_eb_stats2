@@ -185,14 +185,15 @@ def _3val_flag_to_str(val):
         return 'F'
 
 class MatchResult(SimpleNamespace):
-    def __init__(self, mag, mag_band, mag_diff, pm, pm_diff, plx, plx_diff):
+    def __init__(self, mag, mag_band, mag_diff, pm, pmra_diff_pct, pmdec_diff_pct, plx, plx_diff_pct):
         self.mag = mag
         self.mag_band = mag_band
         self.mag_diff = mag_diff
         self.pm = pm
-        self.pm_diff = pm_diff
+        self.pmra_diff_pct = pmra_diff_pct
+        self.pmdec_diff_pct = pmdec_diff_pct
         self.plx = plx
-        self.plx_diff = plx_diff
+        self.plx_diff_pct = plx_diff_pct
 
     def _flag_to_score(self, val):
         if val is None:
@@ -203,7 +204,8 @@ class MatchResult(SimpleNamespace):
             return -1
 
     def score(self):
-        return self._flag_to_score(self.mag)
+        scores = [self._flag_to_score(s) for s in [self.mag, self.pm]]
+        return np.sum(scores)
 
 
 def _has_value(val):
@@ -212,9 +214,17 @@ def _has_value(val):
 
 def _calc_matches(tic_meta, simbad_meta):
 
-    def _diff(val1, val2):
+    max_mag_diff = 0.5
+    max_pmra_diff_pct = 25
+    max_pmdec_diff_pct = 25
+
+    def _diff(val1, val2, in_percent=False):
         if _has_value(val1) and _has_value(val2):
-            return np.abs(val1 - val2)
+            diff = np.abs(val1 - val2)
+            if not in_percent:
+                return diff
+            else:
+                return 100.0 * diff / val1
         else:
             return None
 
@@ -227,11 +237,21 @@ def _calc_matches(tic_meta, simbad_meta):
         mag_diff = _diff(tic_meta[bt], simbad_meta[bs])
         if mag_diff is not None:
             mag_match_band = bt
-            mag_match = mag_diff < 0.5
+            mag_match = mag_diff < max_mag_diff
             break
         #  else no data in TIC and/or SIMBAD, try the next band
 
-    return MatchResult(mag_match, mag_match_band, mag_diff, None, None, None, None)
+    pmra_diff_pct = _diff(tic_meta["pmRA"], simbad_meta["PMRA"], in_percent=True)
+    pmdec_diff_pct = _diff(tic_meta["pmDEC"], simbad_meta["PMDEC"], in_percent=True)
+
+    pm_match = None
+    if pmra_diff_pct is not None and pmdec_diff_pct is not None:
+        if  pmra_diff_pct < max_pmra_diff_pct and pmdec_diff_pct < max_pmdec_diff_pct:
+            pm_match = True
+        else:
+            pm_match = False
+
+    return MatchResult(mag_match, mag_match_band, mag_diff, pm_match, pmra_diff_pct, pmdec_diff_pct, None, None)
 
 
 def find_and_save_simbad_best_xmatch_meta():
@@ -246,8 +266,11 @@ def find_and_save_simbad_best_xmatch_meta():
 
     df["Match_Score"] = 0
     df["Match_Mag"] = ""
+    df["Match_PM"] = ""
     df["Match_Mag_Band"] = ""
     df["Match_Mag_Diff"] = 0.0
+    df["Match_PMRA_DiffPct"] = 0.0
+    df["Match_PMDEC_DiffPct"] = 0.0
 
     # for each candidate in df, compute how it matches with the expected TIC
     # Technical note: update via .iterrows() is among the slowest methods
@@ -265,6 +288,9 @@ def find_and_save_simbad_best_xmatch_meta():
         df.at[i_s, 'Match_Mag'] = _3val_flag_to_str(match_result.mag)
         df.at[i_s, 'Match_Mag_Band'] = match_result.mag_band
         df.at[i_s, 'Match_Mag_Diff'] = match_result.mag_diff
+        df.at[i_s, 'Match_PM'] = _3val_flag_to_str(match_result.pm)
+        df.at[i_s, 'Match_PMRA_DiffPct'] = _3val_flag_to_str(match_result.pmra_diff_pct)
+        df.at[i_s, 'Match_PMDEC_DiffPct'] = _3val_flag_to_str(match_result.pmdec_diff_pct)
 
     # TODO: should we reject those with negative match score
     # review some samples before proceeding
