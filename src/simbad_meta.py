@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
@@ -172,6 +174,109 @@ def get_and_save_simbad_meta_of_all_by_xmatch(max_results_per_target=5):
 
     _save_simbad_meta(res, out_path, mode="w")
     return
+
+
+def _3val_flag_to_str(val):
+    if val is None:
+        return '-'
+    elif val:
+        return 'T'
+    else:
+        return 'F'
+
+class MatchResult(SimpleNamespace):
+    def __init__(self, mag, mag_band, mag_diff, pm, pm_diff, plx, plx_diff):
+        self.mag = mag
+        self.mag_band = mag_band
+        self.mag_diff = mag_diff
+        self.pm = pm
+        self.pm_diff = pm_diff
+        self.plx = plx
+        self.plx_diff = plx_diff
+
+    def _flag_to_score(self, val):
+        if val is None:
+            return 0
+        elif val:
+            return 1
+        else:
+            return -1
+
+    def score(self):
+        return self._flag_to_score(self.mag)
+
+
+def _has_value(val):
+    return val is not None and not(np.isnan(val))
+
+
+def _calc_matches(tic_meta, simbad_meta):
+
+    def _diff(val1, val2):
+        if _has_value(val1) and _has_value(val2):
+            return np.abs(val1 - val2)
+        else:
+            return None
+
+    bands_t = ["Vmag", "Tmag", "GAIAmag", "Bmag"]  # in TIC
+    bands_s = ["FLUX_V", "FLUX_R", "FLUX_G",  "FLUX_B"]  # in SIMBAD
+    mag_match = None
+    mag_match_band = None
+    mag_diff = None
+    for bt, bs in zip(bands_t, bands_s):
+        mag_diff = _diff(tic_meta[bt], simbad_meta[bs])
+        if mag_diff is not None:
+            mag_match_band = bt
+            mag_match = mag_diff < 0.5
+            break
+        #  else no data in TIC and/or SIMBAD, try the next band
+
+    return MatchResult(mag_match, mag_match_band, mag_diff, None, None, None, None)
+
+
+def find_and_save_simbad_best_xmatch_meta():
+    out_path = "cache/simbad_meta_by_xmatch.csv"
+
+    # we basically filter the candidates list by comparing the metadata against those from TIC Catalog
+    # all of the smart logic is encapsulated here
+
+    df = load_simbad_meta_table_from_file("cache/simbad_meta_candidates_by_xmatch.csv")
+    # filter out non-stellar candidates, they are not relevant for TIC matches
+    df = df[df["OTYPES"].str.contains("[*]", na=False)].reset_index(drop=True)
+
+    df["Match_Score"] = 0
+    df["Match_Mag"] = ""
+    df["Match_Mag_Band"] = ""
+    df["Match_Mag_Diff"] = 0.0
+
+    # for each candidate in df, compute how it matches with the expected TIC
+    # Technical note: update via .iterrows() is among the slowest methods
+    # but given our match semantics is not trivial, I settle for using it.
+    df_tics = tic_meta.load_tic_meta_table_from_file()
+    for i_s, row_s in df.iterrows():
+        tic_id = row_s["TIC_ID"]
+        df_t = df_tics[df_tics["ID"] == tic_id]
+        if len(df_t) < 1:
+            print(f"WARN TIC {tic_id} cannot be found in TIC metadata table")
+            continue
+        match_result = _calc_matches(df_t.iloc[0], row_s)
+        # print(f"DBG {tic_id} {match_result}")
+        df.at[i_s, 'Match_Score'] = match_result.score()
+        df.at[i_s, 'Match_Mag'] = _3val_flag_to_str(match_result.mag)
+        df.at[i_s, 'Match_Mag_Band'] = match_result.mag_band
+        df.at[i_s, 'Match_Mag_Diff'] = match_result.mag_diff
+
+    # TODO: should we reject those with negative match score
+    # review some samples before proceeding
+    # df = df[df["Match_Score"] < 0)].reset_index(drop=True)
+
+    df.sort_values(["TIC_ID", "Match_Score", "angDist"], ascending=[True, False, True], inplace=True, ignore_index=True)
+
+    df = df.groupby("TIC_ID").head(1).reset_index(drop=True)
+
+    to_csv(df, out_path, mode="w")
+
+    return df
 
 
 if __name__ =="__main__":
