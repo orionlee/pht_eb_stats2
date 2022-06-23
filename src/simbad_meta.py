@@ -204,7 +204,7 @@ class MatchResult(SimpleNamespace):
             return -1
 
     def score(self):
-        scores = [self._flag_to_score(s) for s in [self.mag, self.pm]]
+        scores = [self._flag_to_score(s) for s in [self.mag, self.pm, self.plx]]
         return np.sum(scores)
 
 
@@ -217,6 +217,7 @@ def _calc_matches(tic_meta, simbad_meta):
     max_mag_diff = 0.5
     max_pmra_diff_pct = 25
     max_pmdec_diff_pct = 25
+    max_plx_diff_pct = 25
 
     def _diff(val1, val2, in_percent=False):
         if _has_value(val1) and _has_value(val2):
@@ -251,7 +252,14 @@ def _calc_matches(tic_meta, simbad_meta):
         else:
             pm_match = False
 
-    return MatchResult(mag_match, mag_match_band, mag_diff, pm_match, pmra_diff_pct, pmdec_diff_pct, None, None)
+    plx_diff_pct = _diff(tic_meta["plx"], simbad_meta["PLX_VALUE"], in_percent=True)
+
+    plx_match = None
+    if plx_diff_pct is not None:
+        plx_match = plx_diff_pct < max_plx_diff_pct
+
+
+    return MatchResult(mag_match, mag_match_band, mag_diff, pm_match, pmra_diff_pct, pmdec_diff_pct, plx_match, plx_diff_pct)
 
 
 def find_and_save_simbad_best_xmatch_meta():
@@ -267,10 +275,12 @@ def find_and_save_simbad_best_xmatch_meta():
     df["Match_Score"] = 0
     df["Match_Mag"] = ""
     df["Match_PM"] = ""
+    df["Match_Plx"] = ""
     df["Match_Mag_Band"] = ""
     df["Match_Mag_Diff"] = 0.0
     df["Match_PMRA_DiffPct"] = 0.0
     df["Match_PMDEC_DiffPct"] = 0.0
+    df["Match_Plx_DiffPct"] = 0.0
 
     # for each candidate in df, compute how it matches with the expected TIC
     # Technical note: update via .iterrows() is among the slowest methods
@@ -288,9 +298,13 @@ def find_and_save_simbad_best_xmatch_meta():
         df.at[i_s, 'Match_Mag'] = _3val_flag_to_str(match_result.mag)
         df.at[i_s, 'Match_Mag_Band'] = match_result.mag_band
         df.at[i_s, 'Match_Mag_Diff'] = match_result.mag_diff
+
         df.at[i_s, 'Match_PM'] = _3val_flag_to_str(match_result.pm)
-        df.at[i_s, 'Match_PMRA_DiffPct'] = _3val_flag_to_str(match_result.pmra_diff_pct)
-        df.at[i_s, 'Match_PMDEC_DiffPct'] = _3val_flag_to_str(match_result.pmdec_diff_pct)
+        df.at[i_s, 'Match_PMRA_DiffPct'] = match_result.pmra_diff_pct
+        df.at[i_s, 'Match_PMDEC_DiffPct'] = match_result.pmdec_diff_pct
+
+        df.at[i_s, 'Match_Plx'] = _3val_flag_to_str(match_result.plx)
+        df.at[i_s, 'Match_Plx_DiffPct'] = match_result.plx_diff_pct
 
     # TODO: should we reject those with negative match score
     # review some samples before proceeding
