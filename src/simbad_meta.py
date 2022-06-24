@@ -234,7 +234,7 @@ def _calc_matches(simbad_meta_row, tic_meta_row):
         else:
             return None
 
-    tic_label = "TIC {tic_meta_row['ID']}"
+    tic_label = f"TIC {tic_meta_row['ID']}"
 
     bands_t = ["Vmag", "Tmag", "GAIAmag", "Bmag"]  # in TIC
     bands_s = ["FLUX_V", "FLUX_R", "FLUX_G",  "FLUX_B"]  # in SIMBAD
@@ -249,8 +249,8 @@ def _calc_matches(simbad_meta_row, tic_meta_row):
             break
         #  else no data in TIC and/or SIMBAD, try the next band
 
-    pmra_diff_pct = _diff(tic_meta_row["pmRA"], simbad_meta_row["PMRA"], in_percent=True, label="{tic_label} pmRA")
-    pmdec_diff_pct = _diff(tic_meta_row["pmDEC"], simbad_meta_row["PMDEC"], in_percent=True, label="{tic_label} pmDEC")
+    pmra_diff_pct = _diff(tic_meta_row["pmRA"], simbad_meta_row["PMRA"], in_percent=True, label=f"{tic_label} pmRA")
+    pmdec_diff_pct = _diff(tic_meta_row["pmDEC"], simbad_meta_row["PMDEC"], in_percent=True, label=f"{tic_label} pmDEC")
 
     pm_match = None
     if pmra_diff_pct is not None and pmdec_diff_pct is not None:
@@ -259,7 +259,7 @@ def _calc_matches(simbad_meta_row, tic_meta_row):
         else:
             pm_match = False
 
-    plx_diff_pct = _diff(tic_meta_row["plx"], simbad_meta_row["PLX_VALUE"], in_percent=True, label="{tic_label} plx")
+    plx_diff_pct = _diff(tic_meta_row["plx"], simbad_meta_row["PLX_VALUE"], in_percent=True, label=f"{tic_label} plx")
 
     plx_match = None
     if plx_diff_pct is not None:
@@ -275,12 +275,12 @@ def _calc_matches(simbad_meta_row, tic_meta_row):
     return MatchResult(mag_match, mag_match_band, mag_diff, pm_match, pmra_diff_pct, pmdec_diff_pct, plx_match, plx_diff_pct, aliases_match, num_aliases_matched)
 
 
-def _calc_matches_for_all(df, df_tics, min_score_to_include=0):
+def _calc_matches_for_all(df, df_tics, match_method_label, min_score_to_include=None):
     # we basically filter the candidates list, `df`
     # by comparing the metadata against those from TIC Catalog, `df_tics`
     # all of the smart logic is encapsulated here
 
-    df["Match_Method"] = "co"  # shorthand for co-ordinate
+    df["Match_Method"] = match_method_label
     df["Match_Score"] = 0
     df["Match_Mag"] = ""
     df["Match_PM"] = ""
@@ -336,7 +336,7 @@ def _calc_matches_for_all(df, df_tics, min_score_to_include=0):
     return df
 
 
-def find_and_save_simbad_best_xmatch_meta(min_score_to_include=0):
+def find_and_save_simbad_best_xmatch_meta(min_score_to_include=None):
     out_path = "cache/simbad_meta_by_xmatch.csv"
 
     df = load_simbad_meta_table_from_file("cache/simbad_meta_candidates_by_xmatch.csv")
@@ -345,11 +345,49 @@ def find_and_save_simbad_best_xmatch_meta(min_score_to_include=0):
 
     df_tics = tic_meta.load_tic_meta_table_from_file()
 
-    df = _calc_matches_for_all(df, df_tics, min_score_to_include=min_score_to_include)
+    df = _calc_matches_for_all(
+        df, df_tics, match_method_label="co",  # shorthand for co-ordinate
+        min_score_to_include=min_score_to_include)
 
     to_csv(df, out_path, mode="w")
 
     return df
+
+
+def combine_and_save_simbad_meta_by_tics_and_xmatch(min_score_to_include=0):
+    out_path_accepted = "../data/simbad_meta.csv"
+    out_path_rejected = "../data/simbad_meta_rejected.csv"  # those with low match score
+
+    df_tic_meta = tic_meta.load_tic_meta_table_from_file()
+
+    df_by_xmatch = load_simbad_meta_table_from_file("cache/simbad_meta_by_xmatch.csv")
+    df_by_ticid = load_simbad_meta_table_from_file("cache/simbad_meta_by_ticid.csv")
+
+    # for those found by TIC ID lookups,
+    #
+    # 1. we exclude those that will be replaced by xmatch
+    #   (the by ticid lookup produces a row even for TICs that is not found)
+    df_by_ticid = df_by_ticid[~df_by_ticid["TIC_ID"].isin(df_by_xmatch["TIC_ID"])]
+
+    # 2. we add match scores (and angDist column) to make its schema the same as those from xmatch
+    df_by_ticid["angDist"] = np.nan
+    df_by_ticid = _calc_matches_for_all(
+        df_by_ticid, df_tic_meta, match_method_label="tic",
+        min_score_to_include=None)
+
+    df = pd.concat([df_by_ticid, df_by_xmatch])
+    df = df.sort_values("TIC_ID", ascending=True)
+
+    # tied to the original astroquery. not really useful in the final output
+    df = df.drop("SCRIPT_NUMBER_ID", axis=1)
+
+    df_accepted = df[df["Match_Score"] >= min_score_to_include].reset_index(drop=True)
+    df_rejected = df[df["Match_Score"] < min_score_to_include].reset_index(drop=True)
+
+    to_csv(df_accepted, out_path_accepted, mode="w")
+    to_csv(df_rejected, out_path_rejected, mode="w")
+
+    return df_accepted, df_rejected
 
 
 def get_aliases(simbad_meta_row):
@@ -371,5 +409,9 @@ if __name__ =="__main__":
     # get_and_save_simbad_meta_of_all_by_xmatch(max_results_per_target=5)
     # 2c. for each applicable TIC, select the best candidate among the results
     #    from crossmatch
-    find_and_save_simbad_best_xmatch_meta(min_score_to_include=None)
+    # find_and_save_simbad_best_xmatch_meta()
+
+    # 3. Combine those from TIC id lookups and those from coordinate crossmatch
+    #    - filter out those with low match scores
+    combine_and_save_simbad_meta_by_tics_and_xmatch(min_score_to_include=0)
 

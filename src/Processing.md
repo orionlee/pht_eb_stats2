@@ -84,8 +84,6 @@ Codes in `simbad_meta.py`. It performs the following steps:
 Done by `get_and_save_simbad_meta_of_all_by_tics()`.
 Output: `cache/simbad_meta_by_ticid.csv`
 
-TODO: Consider to validate the result of lookup by TIC IDs (rather than just trusting them)
-
 ### 2. Grab SIMBAD data for those that cannot be looked up by TIC IDs
 
 #### 2a. Grab SIMBAD MAIN_IDs using coordinates match via Vizier Crossmatch
@@ -108,7 +106,16 @@ Output: `cache/simbad_meta_by_xmatch.csv`
 #### 2d. Merge the result from TIC ID lookup with the result from coordinate crossmatch
 
 Produce the final output of SIMBAD metadata for all the TICs.
+- it also filters out those with low match scores, i.e., likely to be false matches
 
-Done by `TBD`
+Done by `combine_and_save_simbad_meta_by_tics_and_xmatch()`
 Output: `data/simbad_meta.csv`
 
+#### SIMBAD Result summary
+
+- Input: 12561 TICs  (for PHT subjects from sector 1 - 39)
+- Output:
+  - 11192 TICs matched with high certainty
+  - 1369 TICs not matched. Out of these
+    - 925 TICs with some SIMBAD records, but are deemed to be likely false matches
+    - 444 TIcs with no SIMBAD records
