@@ -206,7 +206,9 @@ class MatchResult(SimpleNamespace):
             return -1
 
     def score(self):
-        scores = [self._flag_to_score(s) for s in [self.mag, self.pm, self.plx, self.aliases]]
+        flags = [self.mag, self.pm, self.plx, self.aliases]
+        weight = [2, 1, 1, 1]
+        scores = [self._flag_to_score(f) * w for f, w in zip(flags, weight)]
         return np.sum(scores)
 
 
