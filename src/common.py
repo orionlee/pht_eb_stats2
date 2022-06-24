@@ -124,3 +124,7 @@ def to_csv(data, out_path, mode="a", fieldnames=None):
         [to_csv_of_dict(a_dict) for a_dict in data]
     else:
         raise TypeError(f"Unsupported type for `data`: {type(dict)}")
+
+
+def has_value(val):
+    return not pd.isna(val)

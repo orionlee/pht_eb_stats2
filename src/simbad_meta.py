@@ -185,7 +185,7 @@ def _3val_flag_to_str(val):
         return 'F'
 
 class MatchResult(SimpleNamespace):
-    def __init__(self, mag, mag_band, mag_diff, pm, pmra_diff_pct, pmdec_diff_pct, plx, plx_diff_pct):
+    def __init__(self, mag, mag_band, mag_diff, pm, pmra_diff_pct, pmdec_diff_pct, plx, plx_diff_pct, aliases, num_aliases_matched):
         self.mag = mag
         self.mag_band = mag_band
         self.mag_diff = mag_diff
@@ -194,6 +194,8 @@ class MatchResult(SimpleNamespace):
         self.pmdec_diff_pct = pmdec_diff_pct
         self.plx = plx
         self.plx_diff_pct = plx_diff_pct
+        self.aliases = aliases
+        self.num_aliases_matched = num_aliases_matched
 
     def _flag_to_score(self, val):
         if val is None:
@@ -204,15 +206,12 @@ class MatchResult(SimpleNamespace):
             return -1
 
     def score(self):
-        scores = [self._flag_to_score(s) for s in [self.mag, self.pm, self.plx]]
+        scores = [self._flag_to_score(s) for s in [self.mag, self.pm, self.plx, self.aliases]]
         return np.sum(scores)
 
 
-def _has_value(val):
-    return val is not None and not(np.isnan(val))
 
-
-def _calc_matches(tic_meta, simbad_meta):
+def _calc_matches(tic_meta_row, simbad_meta_row):
 
     max_mag_diff = 0.5
     max_pmra_diff_pct = 25
@@ -220,7 +219,7 @@ def _calc_matches(tic_meta, simbad_meta):
     max_plx_diff_pct = 25
 
     def _diff(val1, val2, in_percent=False):
-        if _has_value(val1) and _has_value(val2):
+        if has_value(val1) and has_value(val2):
             diff = np.abs(val1 - val2)
             if not in_percent:
                 return diff
@@ -235,15 +234,15 @@ def _calc_matches(tic_meta, simbad_meta):
     mag_match_band = None
     mag_diff = None
     for bt, bs in zip(bands_t, bands_s):
-        mag_diff = _diff(tic_meta[bt], simbad_meta[bs])
+        mag_diff = _diff(tic_meta_row[bt], simbad_meta_row[bs])
         if mag_diff is not None:
             mag_match_band = bt
             mag_match = mag_diff < max_mag_diff
             break
         #  else no data in TIC and/or SIMBAD, try the next band
 
-    pmra_diff_pct = _diff(tic_meta["pmRA"], simbad_meta["PMRA"], in_percent=True)
-    pmdec_diff_pct = _diff(tic_meta["pmDEC"], simbad_meta["PMDEC"], in_percent=True)
+    pmra_diff_pct = _diff(tic_meta_row["pmRA"], simbad_meta_row["PMRA"], in_percent=True)
+    pmdec_diff_pct = _diff(tic_meta_row["pmDEC"], simbad_meta_row["PMDEC"], in_percent=True)
 
     pm_match = None
     if pmra_diff_pct is not None and pmdec_diff_pct is not None:
@@ -252,14 +251,20 @@ def _calc_matches(tic_meta, simbad_meta):
         else:
             pm_match = False
 
-    plx_diff_pct = _diff(tic_meta["plx"], simbad_meta["PLX_VALUE"], in_percent=True)
+    plx_diff_pct = _diff(tic_meta_row["plx"], simbad_meta_row["PLX_VALUE"], in_percent=True)
 
     plx_match = None
     if plx_diff_pct is not None:
         plx_match = plx_diff_pct < max_plx_diff_pct
 
+    simbad_aliases = get_aliases(simbad_meta_row)
+    tic_aliases = tic_meta.get_aliases(tic_meta_row)
 
-    return MatchResult(mag_match, mag_match_band, mag_diff, pm_match, pmra_diff_pct, pmdec_diff_pct, plx_match, plx_diff_pct)
+    num_aliases_matched =  len([1 for a in tic_aliases if a in simbad_aliases])
+    aliases_match = num_aliases_matched > 0
+
+
+    return MatchResult(mag_match, mag_match_band, mag_diff, pm_match, pmra_diff_pct, pmdec_diff_pct, plx_match, plx_diff_pct, aliases_match, num_aliases_matched)
 
 
 def find_and_save_simbad_best_xmatch_meta():
@@ -276,11 +281,13 @@ def find_and_save_simbad_best_xmatch_meta():
     df["Match_Mag"] = ""
     df["Match_PM"] = ""
     df["Match_Plx"] = ""
+    df["Match_Aliases"] = ""
     df["Match_Mag_Band"] = ""
     df["Match_Mag_Diff"] = 0.0
     df["Match_PMRA_DiffPct"] = 0.0
     df["Match_PMDEC_DiffPct"] = 0.0
     df["Match_Plx_DiffPct"] = 0.0
+    df["Match_Aliases_NumMatch"] = 0
 
     # for each candidate in df, compute how it matches with the expected TIC
     # Technical note: update via .iterrows() is among the slowest methods
@@ -306,6 +313,9 @@ def find_and_save_simbad_best_xmatch_meta():
         df.at[i_s, 'Match_Plx'] = _3val_flag_to_str(match_result.plx)
         df.at[i_s, 'Match_Plx_DiffPct'] = match_result.plx_diff_pct
 
+        df.at[i_s, 'Match_Aliases'] = _3val_flag_to_str(match_result.aliases)
+        df.at[i_s, 'Match_Aliases_NumMatch'] = match_result.num_aliases_matched
+
     # TODO: should we reject those with negative match score
     # review some samples before proceeding
     # df = df[df["Match_Score"] < 0)].reset_index(drop=True)
@@ -317,6 +327,14 @@ def find_and_save_simbad_best_xmatch_meta():
     to_csv(df, out_path, mode="w")
 
     return df
+
+
+def get_aliases(simbad_meta_row):
+    aliases_str = simbad_meta_row["IDS"]
+    if has_value(aliases_str):
+        return aliases_str.split("|")
+    else:
+        return []
 
 
 if __name__ =="__main__":

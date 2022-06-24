@@ -1,3 +1,5 @@
+import re
+
 from astroquery.mast import Catalogs
 import numpy as np
 import pandas as pd
@@ -55,8 +57,41 @@ def get_and_save_tic_meta_of_all(chunk_size=1000, start_chunk=0, end_chunk_inclu
 
 
 def load_tic_meta_table_from_file(csv_path="../data/tic_meta.csv"):
-    df = pd.read_csv(csv_path)
+    # force pandas to treat the number-based IDs as int that allow N/A
+    # (it'd default to float otherwise)
+    df = pd.read_csv(csv_path, dtype={"HIP": "Int64", "GAIA": "Int64", "APASS": "Int64", "SDSS": "Int64"})
     return df
+
+
+def get_aliases(tic_meta_row):
+    aliases = [f"TIC {tic_meta_row['ID']}"]
+
+    def normalize_tyc_id(id):
+        # In TIC Catalog, the TYC ids have leading zeros, but in SIMBAD and others, they don't
+        id = re.sub(r"-0+(\d+)", r"-\1", id)
+        id = re.sub(r"^0+(\d+)", r"-\1", id)
+        return id
+
+    def add(colname, prefix=None, transform_func=None):
+        if prefix is None:
+            prefix = f"{colname} "
+
+        id = tic_meta_row[colname]
+        if has_value(id):
+            if transform_func is not None:
+                id = transform_func(id)
+            aliases.append(f"{prefix}{id}")
+
+    add("HIP")
+    add("TYC", transform_func=normalize_tyc_id)
+    add("UCAC", "UCAC4 ")
+    add("TWOMASS", "2MASS J")
+    add("ALLWISE", "WISEA ")
+    add("GAIA", "Gaia DR2 ")
+    add("SDSS", "SDSS DR9 ")
+    add("APASS")
+    add("KIC")
+    return aliases
 
 
 if __name__ =="__main__":
