@@ -269,7 +269,7 @@ def _calc_matches(tic_meta_row, simbad_meta_row):
     return MatchResult(mag_match, mag_match_band, mag_diff, pm_match, pmra_diff_pct, pmdec_diff_pct, plx_match, plx_diff_pct, aliases_match, num_aliases_matched)
 
 
-def find_and_save_simbad_best_xmatch_meta():
+def find_and_save_simbad_best_xmatch_meta(min_scores_to_include=0):
     out_path = "cache/simbad_meta_by_xmatch.csv"
 
     # we basically filter the candidates list by comparing the metadata against those from TIC Catalog
@@ -318,12 +318,13 @@ def find_and_save_simbad_best_xmatch_meta():
         df.at[i_s, 'Match_Aliases'] = _3val_flag_to_str(match_result.aliases)
         df.at[i_s, 'Match_Aliases_NumMatch'] = match_result.num_aliases_matched
 
-    # TODO: should we reject those with negative match score
-    # review some samples before proceeding
-    # df = df[df["Match_Score"] < 0)].reset_index(drop=True)
+    # Exclude those with low match scores, default to exclude negative scores
+    if min_scores_to_include is not None:
+        df = df[df["Match_Score"] >= min_scores_to_include].reset_index(drop=True)
 
     df.sort_values(["TIC_ID", "Match_Score", "angDist"], ascending=[True, False, True], inplace=True, ignore_index=True)
 
+    # For each TIC, select the one with the best score
     df = df.groupby("TIC_ID").head(1).reset_index(drop=True)
 
     to_csv(df, out_path, mode="w")
