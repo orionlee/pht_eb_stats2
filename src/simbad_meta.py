@@ -213,7 +213,7 @@ class MatchResult(SimpleNamespace):
 
 
 
-def _calc_matches(tic_meta_row, simbad_meta_row):
+def _calc_matches(simbad_meta_row, tic_meta_row):
 
     max_mag_diff = 0.5
     max_pmra_diff_pct = 25
@@ -269,15 +269,10 @@ def _calc_matches(tic_meta_row, simbad_meta_row):
     return MatchResult(mag_match, mag_match_band, mag_diff, pm_match, pmra_diff_pct, pmdec_diff_pct, plx_match, plx_diff_pct, aliases_match, num_aliases_matched)
 
 
-def find_and_save_simbad_best_xmatch_meta(min_scores_to_include=0):
-    out_path = "cache/simbad_meta_by_xmatch.csv"
-
-    # we basically filter the candidates list by comparing the metadata against those from TIC Catalog
+def _calc_matches_for_all(df, df_tics, min_score_to_include=0):
+    # we basically filter the candidates list, `df`
+    # by comparing the metadata against those from TIC Catalog, `df_tics`
     # all of the smart logic is encapsulated here
-
-    df = load_simbad_meta_table_from_file("cache/simbad_meta_candidates_by_xmatch.csv")
-    # filter out non-stellar candidates, they are not relevant for TIC matches
-    df = df[df["OTYPES"].str.contains("[*]", na=False)].reset_index(drop=True)
 
     df["Match_Score"] = 0
     df["Match_Mag"] = ""
@@ -294,14 +289,13 @@ def find_and_save_simbad_best_xmatch_meta(min_scores_to_include=0):
     # for each candidate in df, compute how it matches with the expected TIC
     # Technical note: update via .iterrows() is among the slowest methods
     # but given our match semantics is not trivial, I settle for using it.
-    df_tics = tic_meta.load_tic_meta_table_from_file()
     for i_s, row_s in df.iterrows():
         tic_id = row_s["TIC_ID"]
         df_t = df_tics[df_tics["ID"] == tic_id]
         if len(df_t) < 1:
             print(f"WARN TIC {tic_id} cannot be found in TIC metadata table")
             continue
-        match_result = _calc_matches(df_t.iloc[0], row_s)
+        match_result = _calc_matches(row_s, df_t.iloc[0])
         # print(f"DBG {tic_id} {match_result}")
         df.at[i_s, 'Match_Score'] = match_result.score()
         df.at[i_s, 'Match_Mag'] = _3val_flag_to_str(match_result.mag)
@@ -319,13 +313,32 @@ def find_and_save_simbad_best_xmatch_meta(min_scores_to_include=0):
         df.at[i_s, 'Match_Aliases_NumMatch'] = match_result.num_aliases_matched
 
     # Exclude those with low match scores, default to exclude negative scores
-    if min_scores_to_include is not None:
-        df = df[df["Match_Score"] >= min_scores_to_include].reset_index(drop=True)
+    if min_score_to_include is not None:
+        df = df[df["Match_Score"] >= min_score_to_include].reset_index(drop=True)
 
-    df.sort_values(["TIC_ID", "Match_Score", "angDist"], ascending=[True, False, True], inplace=True, ignore_index=True)
+    if "angDist" in df.columns:
+        sort_colnames, ascending = ["TIC_ID", "Match_Score", "angDist"], [True, False, True]
+    else:
+        sort_colnames, ascending = ["TIC_ID", "Match_Score"], [True, False]
 
-    # For each TIC, select the one with the best score
+    df.sort_values(sort_colnames, ascending=ascending, inplace=True, ignore_index=True)
+
+    # For each TIC, select the one with the best score (it's sorted above)
     df = df.groupby("TIC_ID").head(1).reset_index(drop=True)
+
+    return df
+
+
+def find_and_save_simbad_best_xmatch_meta(min_score_to_include=0):
+    out_path = "cache/simbad_meta_by_xmatch.csv"
+
+    df = load_simbad_meta_table_from_file("cache/simbad_meta_candidates_by_xmatch.csv")
+    # filter out non-stellar candidates, they are not relevant for TIC matches
+    df = df[df["OTYPES"].str.contains("[*]", na=False)].reset_index(drop=True)
+
+    df_tics = tic_meta.load_tic_meta_table_from_file()
+
+    df = _calc_matches_for_all(df, df_tics, min_score_to_include=min_score_to_include)
 
     to_csv(df, out_path, mode="w")
 
