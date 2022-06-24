@@ -215,20 +215,26 @@ class MatchResult(SimpleNamespace):
 
 def _calc_matches(simbad_meta_row, tic_meta_row):
 
-    max_mag_diff = 0.5
+    max_mag_diff = 1.0
     max_pmra_diff_pct = 25
     max_pmdec_diff_pct = 25
     max_plx_diff_pct = 25
 
-    def _diff(val1, val2, in_percent=False):
+    def _diff(val1, val2, in_percent=False, label=""):
         if has_value(val1) and has_value(val2):
             diff = np.abs(val1 - val2)
             if not in_percent:
                 return diff
             else:
-                return 100.0 * diff / val1
+                if val1 == 0:
+                    print(f"WARN in calculating the difference percentage of {label} , division by zero happens. returning nan")
+                    return np.nan
+                else:
+                    return 100.0 * diff / np.abs(val1)
         else:
             return None
+
+    tic_label = "TIC {tic_meta_row['ID']}"
 
     bands_t = ["Vmag", "Tmag", "GAIAmag", "Bmag"]  # in TIC
     bands_s = ["FLUX_V", "FLUX_R", "FLUX_G",  "FLUX_B"]  # in SIMBAD
@@ -236,15 +242,15 @@ def _calc_matches(simbad_meta_row, tic_meta_row):
     mag_match_band = None
     mag_diff = None
     for bt, bs in zip(bands_t, bands_s):
-        mag_diff = _diff(tic_meta_row[bt], simbad_meta_row[bs])
+        mag_diff = _diff(tic_meta_row[bt], simbad_meta_row[bs], label=f"{tic_label} magnitude ({bt} {bs})")
         if mag_diff is not None:
             mag_match_band = bt
             mag_match = mag_diff < max_mag_diff
             break
         #  else no data in TIC and/or SIMBAD, try the next band
 
-    pmra_diff_pct = _diff(tic_meta_row["pmRA"], simbad_meta_row["PMRA"], in_percent=True)
-    pmdec_diff_pct = _diff(tic_meta_row["pmDEC"], simbad_meta_row["PMDEC"], in_percent=True)
+    pmra_diff_pct = _diff(tic_meta_row["pmRA"], simbad_meta_row["PMRA"], in_percent=True, label="{tic_label} pmRA")
+    pmdec_diff_pct = _diff(tic_meta_row["pmDEC"], simbad_meta_row["PMDEC"], in_percent=True, label="{tic_label} pmDEC")
 
     pm_match = None
     if pmra_diff_pct is not None and pmdec_diff_pct is not None:
@@ -253,7 +259,7 @@ def _calc_matches(simbad_meta_row, tic_meta_row):
         else:
             pm_match = False
 
-    plx_diff_pct = _diff(tic_meta_row["plx"], simbad_meta_row["PLX_VALUE"], in_percent=True)
+    plx_diff_pct = _diff(tic_meta_row["plx"], simbad_meta_row["PLX_VALUE"], in_percent=True, label="{tic_label} plx")
 
     plx_match = None
     if plx_diff_pct is not None:
