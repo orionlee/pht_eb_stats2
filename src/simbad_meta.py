@@ -280,6 +280,7 @@ def _calc_matches_for_all(df, df_tics, min_score_to_include=0):
     # by comparing the metadata against those from TIC Catalog, `df_tics`
     # all of the smart logic is encapsulated here
 
+    df["Match_Method"] = "co"  # shorthand for co-ordinate
     df["Match_Score"] = 0
     df["Match_Mag"] = ""
     df["Match_PM"] = ""
@@ -367,5 +368,8 @@ if __name__ =="__main__":
     # 2a. use crossmatch to get a list of potential simbad objects
     # xmatch_and_save_all_unmatched_tics()
     # 2b. Use the list from crossmatch to get and save the simbad entries
-    get_and_save_simbad_meta_of_all_by_xmatch(max_results_per_target=5)
+    # get_and_save_simbad_meta_of_all_by_xmatch(max_results_per_target=5)
+    # 2c. for each applicable TIC, select the best candidate among the results
+    #    from crossmatch
+    find_and_save_simbad_best_xmatch_meta(min_score_to_include=None)
 
