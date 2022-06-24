@@ -296,6 +296,11 @@ def _calc_matches_for_all(df, df_tics, match_method_label, min_score_to_include=
     # for each candidate in df, compute how it matches with the expected TIC
     # Technical note: update via .iterrows() is among the slowest methods
     # but given our match semantics is not trivial, I settle for using it.
+    #
+    # I also consider defer the DataFrame update after the iteration in a batch
+    # (and hold the result in ndarray in the loop)
+    # Empirical test shows that the iteration alone (along with fetch the match row in df_tics)
+    # account for 50+% of the running time. So I decide not to pursue any more optimization for now.
     for i_s, row_s in df.iterrows():
         tic_id = row_s["TIC_ID"]
         df_t = df_tics[df_tics["ID"] == tic_id]
