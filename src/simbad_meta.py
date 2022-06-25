@@ -1,3 +1,5 @@
+from enum import Enum, unique
+import json
 from types import SimpleNamespace
 
 from astropy import units as u
@@ -401,6 +403,122 @@ def get_aliases(simbad_meta_row):
         return aliases_str.split("|")
     else:
         return []
+
+
+#
+# Mapping SIMBAD type (OTYPE) to EB Classification
+#
+
+@unique
+class MapResult(Enum):
+    def __new__(cls, value, label):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        obj.label = label
+        return obj
+
+    TRUE = (4, "T")
+    FALSE = (3, "F")
+    NOT_MAPPED = (2, "?")
+    NA = (1, "-")
+
+class SIMBADTypeMapAccessor:
+    def __init__(self, csv_path="../data/simbad_typemap.csv"):
+        def _to_map_result(is_eb):
+            if pd.isna(is_eb):
+                res =  MapResult.NA
+            elif is_eb:
+                res = MapResult.TRUE
+            else:
+                res = MapResult.FALSE
+            return res
+
+        self.df = pd.read_csv(csv_path)
+
+        # convert the mapping needed from dataframe to a dictionary
+        # to avoid the overhead of repeated dataframe access
+        is_eb_col = [_to_map_result(is_eb) for is_eb in self.df["Is_EB"]]
+        self._otypes_dict = dict(zip(self.df["SIMBAD_Type"], is_eb_col ))
+
+        self.not_mapped_otypes_seen = set()
+
+
+    def _map_1_otype(self, otype):
+        res = self._otypes_dict.get(otype, MapResult.NOT_MAPPED)
+        if res == MapResult.NOT_MAPPED:
+            self.not_mapped_otypes_seen.add(otype)
+        return res
+
+    def map(self, otypes):
+        otypes = otypes.split("|")
+        res_list = [self._map_1_otype(ot).value for ot in otypes]
+        best = np.max(res_list)
+        return MapResult(best)
+
+
+def map_simbad_otypes_of_all():
+    typemap = SIMBADTypeMapAccessor()
+    df = load_simbad_meta_table_from_file()
+
+    map_res = [typemap.map(otypes).label for otypes in df["OTYPES"]]
+
+    # return a useful subset of columns, in addition to the EB map result
+    res = df[["MAIN_ID", "TIC_ID", "OTYPES", "V__vartyp", "Match_Score"]]
+    res.insert(2, "Is_EB_SIMBAD", map_res)
+    return res, list(typemap.not_mapped_otypes_seen)
+
+
+def _to_typemap_df(otypes, default_is_eb_value=""):
+    otypes_map = SIMBADOTypesAccessor().otypes
+    def get_description(otype):
+        r = otypes_map.get(otype)
+        if r is not None:
+            return f"{r.get('description', '')} | {r.get('category', '')} | {r.get('subcategory', '')}"
+        else:
+            return ''
+
+    is_eb = np.full_like(otypes, default_is_eb_value)
+    description = [get_description(otype) for otype in otypes]
+    notes = np.full_like(otypes, "")
+    df = pd.DataFrame({
+        "SIMBAD_Type": otypes,
+        "Is_EB": is_eb,
+        "Description": description,
+        "Notes": notes,
+        })
+    return df
+
+
+class SIMBADOTypesAccessor():
+
+    @classmethod
+    def _get_otypes_from_remote(cls, url=None):
+        if url is None:
+            # local version of https://simbad.cds.unistra.fr/guide/otypes/json/otype_nodes.json
+            with open("../data/simbad_otype_nodes.json", mode="r") as f:
+                return json.load(f)
+        else:
+            return fetch_json(url)
+
+    def __init__(self, url=None):
+        self.raw_list = SIMBADOTypesAccessor._get_otypes_from_remote(url)
+        self.otypes = dict()
+
+        for row in self.raw_list:
+            key = row.get("id")
+            if key is not None:
+                self.otypes[key] = row
+            key = row.get("candidate")
+            if key is not None:
+                # create an entry for the candidate variant
+                label = row.get("label", "")
+                label = f"{label}?"
+                desc = row.get("description", "")
+                desc = f"{desc} candidate"
+                row = row.copy()
+                row["label"] = label
+                row["description"] = desc
+                self.otypes[key] = row
 
 
 if __name__ =="__main__":
