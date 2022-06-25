@@ -456,19 +456,23 @@ class SIMBADTypeMapAccessor:
         return MapResult(best)
 
 
-def map_simbad_otypes_of_all():
+def map_and_save_simbad_otypes_of_all():
+    out_path = "../data/simbad_is_eb.csv"
     typemap = SIMBADTypeMapAccessor()
     df = load_simbad_meta_table_from_file()
 
     map_res = [typemap.map(otypes).label for otypes in df["OTYPES"]]
 
     # return a useful subset of columns, in addition to the EB map result
-    res = df[["MAIN_ID", "TIC_ID", "OTYPES", "V__vartyp", "Match_Score"]]
+    res = df[["MAIN_ID", "TIC_ID", "OTYPES", "V__vartyp", "angDist", "Match_Score"]]
     res.insert(2, "Is_EB_SIMBAD", map_res)
+
+    to_csv(res, out_path, mode="w")
     return res, list(typemap.not_mapped_otypes_seen)
 
 
 def _to_typemap_df(otypes, default_is_eb_value=""):
+    # use case: map a list of otypes that is previously not in OTYPES - IsEB map
     otypes_map = SIMBADOTypesAccessor().otypes
     def get_description(otype):
         r = otypes_map.get(otype)
