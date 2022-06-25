@@ -75,7 +75,7 @@ TBD
 
 ## SIMBAD data
 
-Output: `data/simbad_meta.csv`
+Output: `../data/simbad_meta.csv`
 
 Codes in `simbad_meta.py`. It performs the following steps:
 
@@ -106,10 +106,18 @@ Output: `cache/simbad_meta_by_xmatch.csv`
 #### 2d. Merge the result from TIC ID lookup with the result from coordinate crossmatch
 
 Produce the final output of SIMBAD metadata for all the TICs.
-- it also filters out those with low match scores, i.e., likely to be false matches
+It also filters out those with low match scores, i.e., likely to be false matches
 
 Done by `combine_and_save_simbad_meta_by_tics_and_xmatch()`
-Output: `data/simbad_meta.csv`
+Output: `../data/simbad_meta.csv`
+
+#### 2e. For each SIMBAD record, map `Is_EB`, i.e., if it represents an eclipsing binary
+
+Done by `map_and_save_simbad_otypes_of_all()`
+Output: `../data/simbad_is_eb.csv`
+
+Note: the mapping between SIMBAD `OTYPE` to `Is_EB` is driven by `../data/simbad_typemap.csv`
+mapping table. The mapping needs to be updated if an `OTYPE` value is not included there.
 
 #### SIMBAD Result summary
 
