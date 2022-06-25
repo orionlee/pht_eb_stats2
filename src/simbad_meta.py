@@ -282,18 +282,18 @@ def _calc_matches_for_all(df, df_tics, match_method_label, min_score_to_include=
     # by comparing the metadata against those from TIC Catalog, `df_tics`
     # all of the smart logic is encapsulated here
 
-    df["Match_Method"] = match_method_label
-    df["Match_Score"] = 0
-    df["Match_Mag"] = ""
-    df["Match_PM"] = ""
-    df["Match_Plx"] = ""
-    df["Match_Aliases"] = ""
-    df["Match_Mag_Band"] = ""
-    df["Match_Mag_Diff"] = 0.0
-    df["Match_PMRA_DiffPct"] = 0.0
-    df["Match_PMDEC_DiffPct"] = 0.0
-    df["Match_Plx_DiffPct"] = 0.0
-    df["Match_Aliases_NumMatch"] = 0
+    df_len = len(df)
+    col_Match_Score = np.zeros(df_len, dtype=int)
+    col_Match_Mag = np.full(df_len, "", dtype="O")
+    col_Match_PM = np.full(df_len, "", dtype="O")
+    col_Match_Plx = np.full(df_len, "", dtype="O")
+    col_Match_Aliases = np.full(df_len, "", dtype="O")
+    col_Match_Mag_Band = np.full(df_len, "", dtype="O")
+    col_Match_Mag_Diff = np.zeros(df_len, dtype=float)
+    col_Match_PMRA_DiffPct = np.zeros(df_len, dtype=float)
+    col_Match_PMDEC_DiffPct = np.zeros(df_len, dtype=float)
+    col_Match_Plx_DiffPct = np.zeros(df_len, dtype=float)
+    col_Match_Aliases_NumMatch = np.zeros(df_len, dtype=int)
 
     # for each candidate in df, compute how it matches with the expected TIC
     # Technical note: update via .iterrows() is among the slowest methods
@@ -307,27 +307,48 @@ def _calc_matches_for_all(df, df_tics, match_method_label, min_score_to_include=
     # optimization: make lookup a row in df_tics by tic_id fast by using it as an index
     # it saves ~30+% of the running time for a ~10,000 rows dataset
     df_tics = df_tics.set_index("ID", drop=False)  # we still want df_tics["ID"] work after using it as an index
-    for i_s, row_s in df.iterrows():
+    i_s = 0
+    for _, row_s in df.iterrows():
+        # note: the index returned by df.iterrows() somehow is mostly the expected 0-based index,
+        # but the last row is off by 1, so I keep track of 0-based index myself.
+        # Plus in general, the index of a dataframe can be arbitrary so I shouldn't really rely on it.
         tic_id = row_s["TIC_ID"]
         # Note: a KeyError would be raised if tic_id is unexpected not found in df_tics
         # in practice it shouldn't happen to our dataset.
         row_t = df_tics.loc[tic_id]
         match_result = _calc_matches(row_s, row_t)
         # print(f"DBG {tic_id} {match_result}")
-        df.at[i_s, 'Match_Score'] = match_result.score()
-        df.at[i_s, 'Match_Mag'] = _3val_flag_to_str(match_result.mag)
-        df.at[i_s, 'Match_Mag_Band'] = match_result.mag_band
-        df.at[i_s, 'Match_Mag_Diff'] = match_result.mag_diff
+        col_Match_Score[i_s] = match_result.score()
+        col_Match_Mag[i_s] = _3val_flag_to_str(match_result.mag)
+        col_Match_Mag_Band[i_s] = match_result.mag_band
+        col_Match_Mag_Diff[i_s] = match_result.mag_diff
 
-        df.at[i_s, 'Match_PM'] = _3val_flag_to_str(match_result.pm)
-        df.at[i_s, 'Match_PMRA_DiffPct'] = match_result.pmra_diff_pct
-        df.at[i_s, 'Match_PMDEC_DiffPct'] = match_result.pmdec_diff_pct
+        col_Match_PM[i_s] = _3val_flag_to_str(match_result.pm)
+        col_Match_PMRA_DiffPct[i_s] = match_result.pmra_diff_pct
+        col_Match_PMDEC_DiffPct[i_s] = match_result.pmdec_diff_pct
 
-        df.at[i_s, 'Match_Plx'] = _3val_flag_to_str(match_result.plx)
-        df.at[i_s, 'Match_Plx_DiffPct'] = match_result.plx_diff_pct
+        col_Match_Plx[i_s] = _3val_flag_to_str(match_result.plx)
+        col_Match_Plx_DiffPct[i_s] = match_result.plx_diff_pct
 
-        df.at[i_s, 'Match_Aliases'] = _3val_flag_to_str(match_result.aliases)
-        df.at[i_s, 'Match_Aliases_NumMatch'] = match_result.num_aliases_matched
+        col_Match_Aliases[i_s] = _3val_flag_to_str(match_result.aliases)
+        col_Match_Aliases_NumMatch[i_s] = match_result.num_aliases_matched
+
+        i_s += 1
+
+    # optimization: batch update the dataframe after the loop, rather than cell by cell
+    # save 20+% of time for ~10,000 rows dataset
+    df["Match_Method"] = match_method_label
+    df["Match_Score"] = col_Match_Score
+    df["Match_Mag"] = col_Match_Mag
+    df["Match_PM"] = col_Match_PM
+    df["Match_Plx"] = col_Match_Plx
+    df["Match_Aliases"] = col_Match_Aliases
+    df["Match_Mag_Band"] = col_Match_Mag_Band
+    df["Match_Mag_Diff"] = col_Match_Mag_Diff
+    df["Match_PMRA_DiffPct"] = col_Match_PMRA_DiffPct
+    df["Match_PMDEC_DiffPct"] = col_Match_PMDEC_DiffPct
+    df["Match_Plx_DiffPct"] = col_Match_Plx_DiffPct
+    df["Match_Aliases_NumMatch"] = col_Match_Aliases_NumMatch
 
     # Exclude those with low match scores, default to exclude negative scores
     if min_score_to_include is not None:
