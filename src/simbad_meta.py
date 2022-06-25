@@ -303,13 +303,16 @@ def _calc_matches_for_all(df, df_tics, match_method_label, min_score_to_include=
     # (and hold the result in ndarray in the loop)
     # Empirical test shows that the iteration alone (along with fetch the match row in df_tics)
     # account for 50+% of the running time. So I decide not to pursue any more optimization for now.
+    #
+    # optimization: make lookup a row in df_tics by tic_id fast by using it as an index
+    # it saves ~30+% of the running time for a ~10,000 rows dataset
+    df_tics = df_tics.set_index("ID", drop=False)  # we still want df_tics["ID"] work after using it as an index
     for i_s, row_s in df.iterrows():
         tic_id = row_s["TIC_ID"]
-        df_t = df_tics[df_tics["ID"] == tic_id]
-        if len(df_t) < 1:
-            print(f"WARN TIC {tic_id} cannot be found in TIC metadata table")
-            continue
-        match_result = _calc_matches(row_s, df_t.iloc[0])
+        # Note: a KeyError would be raised if tic_id is unexpected not found in df_tics
+        # in practice it shouldn't happen to our dataset.
+        row_t = df_tics.loc[tic_id]
+        match_result = _calc_matches(row_s, row_t)
         # print(f"DBG {tic_id} {match_result}")
         df.at[i_s, 'Match_Score'] = match_result.score()
         df.at[i_s, 'Match_Mag'] = _3val_flag_to_str(match_result.mag)
