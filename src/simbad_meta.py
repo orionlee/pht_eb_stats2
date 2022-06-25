@@ -564,5 +564,11 @@ if __name__ =="__main__":
 
     # 3. Combine those from TIC id lookups and those from coordinate crossmatch
     #    - filter out those with low match scores
-    combine_and_save_simbad_meta_by_tics_and_xmatch(min_score_to_include=0)
+    # combine_and_save_simbad_meta_by_tics_and_xmatch(min_score_to_include=0)
 
+    # for each SIMBAD record, map it OTYPES to Is_EB
+    # it depends on the mapping defined in `data/simbad_typemap.csv`
+    # simbad_is_eb_df, not_mapped_otypes_seen = map_and_save_simbad_otypes_of_all()
+    # if len(not_mapped_otypes_seen) > 0:
+    #     print(f"WARN: there are {len(not_mapped_otypes_seen)} number of OTYPE value not mapped.")
+    #     print(not_mapped_otypes_seen)
