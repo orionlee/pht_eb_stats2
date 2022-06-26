@@ -75,10 +75,18 @@ python pht_subj_comments_per_subject.py
 Possible useful later on metadata
 
 
-#### Process comments to produce per-TIC summary (tags, etc.)
+### Per-TIC PHT Subject Statistics
 
-Output: `cache/comments_summary_per_tic.csv`
-TBD
+Output: `../data/tic_pht_stats.csv`
+
+It includes at per-TIC level:
+
+- metadata (relevant PHT subjects)
+- summary for comments (EB scores, tags)
+
+```shell
+python tic_pht_stats.py
+```
 
 
 ## SIMBAD data

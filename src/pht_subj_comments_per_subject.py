@@ -82,6 +82,12 @@ def save_and_summarize_of_all_subjects(also_return_df_comments=False, dry_run=Fa
         return df_summary
 
 
+def load_pht_subj_comment_summary_table_from_file():
+    csv_path = "../data/pht_subj_comments_summary.csv"
+    df = pd.read_csv(csv_path)
+    return df
+
+
 if __name__ =="__main__":
     save_and_summarize_of_all_subjects(also_return_df_comments=False)
 

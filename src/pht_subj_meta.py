@@ -45,8 +45,10 @@ def save_meta_of_subject(subject_meta, call_i, call_kwargs):
         csv_writer.writerow(subject_meta)
 
 
-def load_subject_meta_table_from_file(table_csv_path="../data/pht_subj_meta.csv"):
+def load_subject_meta_table_from_file(table_csv_path="../data/pht_subj_meta.csv", include_simulation=False):
     df = pd.read_csv(table_csv_path)
+    if not include_simulation:
+        df = df[df["tic_id"] > 0].reset_index()
     return df
 
 #
