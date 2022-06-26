@@ -43,13 +43,17 @@ def _add_tag_groups(df_comments):
     return df_comments
 
 
-def save_and_summarize_of_all_subjects(also_return_df_comments=False):
+def save_and_summarize_of_all_subjects(also_return_df_comments=False, dry_run=False, dry_run_data_size=1000):
     out_path = "../data/pht_subj_comments_summary.csv"
     df_comments = load_comment_summaries_table_from_file(include_is_deleted=False)
+    if dry_run and dry_run_data_size is not None:
+        df_comments=df_comments[:dry_run_data_size]
     df_comments = _add_tag_groups(df_comments)
     df_summary = df_comments.groupby("subject_id").apply(_to_summary_of_subject)
 
-    to_csv(df_summary, out_path, mode="w")
+    if not dry_run:
+        to_csv(df_summary, out_path, mode="w")
+
     if also_return_df_comments:
         return df_summary, df_comments
     else:
