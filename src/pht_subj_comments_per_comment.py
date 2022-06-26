@@ -55,13 +55,15 @@ def save_comment_summaries(comment_summaries, call_i, call_kwargs):
     to_csv(comment_summaries, out_path, mode="a")
 
 
-def load_comment_summaries_table_from_file(table_csv_path="cache/comments_summary_per_comment.csv"):
+def load_comment_summaries_table_from_file(table_csv_path="cache/comments_summary_per_comment.csv", include_is_deleted=False):
     df = pd.read_csv(
         table_csv_path,
         keep_default_na=False,  # so that empty string in tags won't be read as NaN
         parse_dates=["updated_at",],
         dtype=dict(is_deleted=bool),
         )
+    if not include_is_deleted:
+        df = df[~df["is_deleted"]].reset_index(drop=True)
     return df
 
 

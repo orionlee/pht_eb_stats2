@@ -50,21 +50,29 @@ python pht_subj_comments.py
 Output: `cache/comments_summary_per_comment.csv`
 
 ```shell
+# in case the file exists
+rm cache/comments_summary_per_comment.csv
 python pht_subj_comments_per_comment.py
 ```
 
 #### Process comments to produce per-subject summary (tags, etc.)
 
-Output: `cache/comments_summary_per_subject.csv`
-TBD.
-Summary
+It requires a mapping of synonyms of EB / transit tags, stored in `../data/pht_tag_map.csv`
 
-- Count up-votes (EB-like tags), down votes (transits, NEB, etc.), and score it
+Output: `../data/pht_subj_comments_summary.csv `
 
+```shell
+python pht_subj_comments_per_subject.py
+```
+
+- Count up-votes (EB-like tags), down votes (transits.), and score it
+  - also include some generic metadata, number of comments, last updated, etc.
+
+- TODO:
+  - consider other up votes: the text #EB in messages
+  - consider EB variants, #algol, #beta-lyr, #w-uma, #contactbinary, etc.
+  - consider other down votes, #NEB,  #contamination, pulsators (#rr-lyrae), etc.
 Possible useful later on metadata
-
-- num. comments
-- last updated
 
 
 #### Process comments to produce per-TIC summary (tags, etc.)
