@@ -1,4 +1,4 @@
-tic_id,best_subject_id,sector,is_eb_catalog,eb_score,num_votes_eb,num_votes_transit,num_users,num_comments,updated_at,best_subject_img_id,num_subjects,sectors,subject_ids,MAIN_ID,Is_EB_SIMBAD,OTYPES,V__vartyp,angDist,Match_Score
+tic_id,best_subject_id,best_subject_sector,is_eb_catalog,eb_score,num_votes_eb,num_votes_transit,num_users,num_comments,updated_at,best_subject_img_id,num_subjects,sectors,subject_ids,MAIN_ID,Is_EB_SIMBAD,OTYPES,V__vartyp,angDist,Match_Score
 23369,64603192,38,-,1,1,0,1,1,2021-07-27 15:50:23.097000+00:00,f15b962d-d3c9-44a7-8f5c-c07dddb1b9d5,1,38,64603192,LP  857-62,-,PM*|*|IR,,,5
 52357,64613852,38,-,3,3,0,4,4,2021-07-26 06:34:44.882000+00:00,771ba55c-b16b-4146-a035-a2f0c3dd898a,2,"38,11","64613852,34495736",HD 129195,-,V*|*|IR,,,3
 72331,64610692,38,-,3,3,0,6,6,2021-08-03 10:21:55.190000+00:00,3e14a7c3-8187-4991-8dfb-8ce09774c698,1,38,64610692,LP  858-21,-,PM*|*|IR,,,5

@@ -47,7 +47,7 @@ def calc_and_save_pht_stats(dry_run=False, dry_run_size=1000, also_return_df_sub
     # rename/rearrange the columns to make the result easier for inspection
     df_tics = df_tics.rename(columns={
         "subject_id": "best_subject_id",
-        "sector_id": "best_subject_sector_id",
+        "sector": "best_subject_sector",
         "img_id": "best_subject_img_id",
         })
 

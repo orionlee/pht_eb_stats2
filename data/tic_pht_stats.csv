@@ -1,4 +1,4 @@
-tic_id,best_subject_id,sector,eb_score,num_votes_eb,num_votes_transit,num_users,num_comments,updated_at,best_subject_img_id,num_subjects,sectors,subject_ids
+tic_id,best_subject_id,best_subject_sector,eb_score,num_votes_eb,num_votes_transit,num_users,num_comments,updated_at,best_subject_img_id,num_subjects,sectors,subject_ids
 23369,64603192,38,1,1,0,1,1,2021-07-27 15:50:23.097000+00:00,f15b962d-d3c9-44a7-8f5c-c07dddb1b9d5,1,38,64603192
 49779,64601285,38,1,1,0,2,2,2021-07-22 22:13:28.931000+00:00,d9516391-ee04-4ff9-b68b-156bd7687668,1,38,64601285
 52357,64613852,38,3,3,0,4,4,2021-07-26 06:34:44.882000+00:00,771ba55c-b16b-4146-a035-a2f0c3dd898a,2,"38,11","64613852,34495736"
