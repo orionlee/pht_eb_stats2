@@ -22,9 +22,9 @@ def calc_and_save_pht_stats(dry_run=False, dry_run_size=1000, also_return_df_sub
     # column-merge the 2 tables by subject_id
     # - use inner join to eliminate the simulation subjects, already excluded in df_meta, but not df_comment_stats.
     # - remove the duplicate subject_id column
-    df_meta.set_index("subject_id", drop=True, inplace=True)
-    df_subjects.set_index("subject_id", drop=True, inplace=True)
-    df_subjects = pd.concat([df_meta, df_comment_stats.drop("subject_id", axis=1)], join="inner", axis=1)
+    df_meta.set_index("subject_id", drop=False, inplace=True)
+    df_comment_stats.set_index("subject_id", drop=True, inplace=True)
+    df_subjects = pd.concat([df_meta, df_comment_stats], join="inner", axis=1)
 
     # a sanity check
     if not (df_meta["subject_id"] == df_subjects["subject_id"]).all():
