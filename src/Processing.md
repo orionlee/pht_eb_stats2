@@ -155,3 +155,14 @@ mapping table. The mapping needs to be updated if an `OTYPE` value is not includ
 - Combine:
   - Per-TIC PHT Subject Statistics
   - SIMBAD results
+
+```shell
+python catalog.py --combine
+```
+
+If there are updates to various mapping tables used or mapping logic,
+re-apply all to produce the catalog table.
+
+```shell
+python catalog.py --remap
+```

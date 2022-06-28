@@ -1,8 +1,12 @@
+import argparse
 import pandas as pd
 
+import tqdm
+
 from common import *
-from tic_pht_stats import load_tic_pht_stats_table_from_file
-from simbad_meta import load_simbad_is_eb_table_from_file
+import pht_subj_comments_per_subject
+import simbad_meta
+import tic_pht_stats
 
 
 def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000):
@@ -10,8 +14,8 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000):
     # those that are likely to be false positives
     out_path = "../data/catalog_pht_eb_candidates.csv"
 
-    df_pht = load_tic_pht_stats_table_from_file()
-    df_simbad = load_simbad_is_eb_table_from_file()
+    df_pht = tic_pht_stats.load_tic_pht_stats_table_from_file()
+    df_simbad = simbad_meta.load_simbad_is_eb_table_from_file()
 
     if dry_run and dry_run_size is not None:
         df_pht = df_pht[:dry_run_size]
@@ -39,5 +43,61 @@ def load_pht_eb_candidate_catalog_from_file(csv_path="../data/catalog_pht_eb_can
     return df
 
 
+def reprocess_all_mapping_and_save_pht_eb_candidate_catalog():
+    with tqdm(total=5) as pbar:
+
+        pbar.set_description("Reprocessing all mapping to produce the catalog")
+
+        pbar.write("PHT per-subject summary")
+        # , affected by
+        # - tag mapping table: `../data/pht_tag_map.csv`
+        # - the eb vote count logic
+        pht_subj_comments_per_subject.save_and_summarize_of_all_subjects()
+        pbar.update(1)
+
+        pbar.write("Per-TIC PHT stats")
+        tic_pht_stats.calc_and_save_pht_stats()
+        pbar.update(1)
+
+        pbar.write("SIMBAD metadata")
+        # , affected by
+        # - crossmatch logic (primarily on Match_score calculation)
+        simbad_meta.combine_and_save_simbad_meta_by_tics_and_xmatch()
+        pbar.update(1)
+
+        pbar.write("SIMBAD Is_EB table")
+        # , affected by
+        # - OTYPE mapping table: `../data/simbad_typemap.csv`
+        simbad_meta.map_and_save_simbad_otypes_of_all()
+        pbar.update(1)
+
+        pbar.write("Overall catalog")
+        # Merge to produce overall catalog
+        combine_and_save_pht_eb_candidate_catalog()
+        pbar.update(1)
+    pass
+
+
 if __name__ == "__main__":
-    combine_and_save_pht_eb_candidate_catalog()
+    parser = argparse.ArgumentParser(description='Produce PHT EB Candidate catalog table.')
+    parser.add_argument(
+        "--remap",
+        action="store_true",
+        help="Apply various mapping logic to produce the catalog, assuming the required data has been fetched."
+        )
+    parser.add_argument(
+        "--combine",
+        action="store_true",
+        help="Combine the underling tables to the catalog, no mapping logic is reapplied"
+        )
+    args = parser.parse_args()
+    # print(args)
+
+    if args.remap:
+        reprocess_all_mapping_and_save_pht_eb_candidate_catalog()
+    elif args.combine:
+        combine_and_save_pht_eb_candidate_catalog()
+    else:
+        print("At least one argument must be specified.")
+        parser.print_help()
+        parser.exit()
