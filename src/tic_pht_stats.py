@@ -68,5 +68,10 @@ def calc_and_save_pht_stats(dry_run=False, dry_run_size=1000, also_return_df_sub
         return df_tics
 
 
+def load_tic_pht_stats_table_from_file(csv_path="../data/tic_pht_stats.csv"):
+    df = pd.read_csv(csv_path)
+    return df
+
+
 if __name__ == "main":
     calc_and_save_pht_stats()

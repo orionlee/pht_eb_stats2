@@ -517,6 +517,11 @@ def _to_typemap_df(otypes, default_is_eb_value=""):
     return df
 
 
+def load_simbad_is_eb_table_from_file(csv_path="../data/simbad_is_eb.csv"):
+    df = pd.read_csv(csv_path)
+    return df
+
+
 class SIMBADOTypesAccessor():
 
     @classmethod
@@ -572,3 +577,4 @@ if __name__ =="__main__":
     # if len(not_mapped_otypes_seen) > 0:
     #     print(f"WARN: there are {len(not_mapped_otypes_seen)} number of OTYPE value not mapped.")
     #     print(not_mapped_otypes_seen)
+    pass

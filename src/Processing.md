@@ -143,3 +143,15 @@ mapping table. The mapping needs to be updated if an `OTYPE` value is not includ
   - 1369 TICs not matched. Out of these
     - 925 TICs with some SIMBAD records, but are deemed to be likely false matches
     - 444 TIcs with no SIMBAD records
+
+## PHT EB Candidate Catalog
+
+### Create a preliminary catalog
+
+- Output: `../data/catalog_pht_eb_candidates.csv`
+
+- it would contain a fair amount of false positives that require further filtering
+
+- Combine:
+  - Per-TIC PHT Subject Statistics
+  - SIMBAD results
