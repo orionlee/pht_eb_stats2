@@ -457,7 +457,9 @@ class SIMBADTypeMapAccessor:
                 res = MapResult.FALSE
             return res
 
-        self.df = pd.read_csv(csv_path)
+        # Is_EB column: Nullable boolean,
+        # N/A would mean the classification has no bearing on Is_EB
+        self.df = pd.read_csv(csv_path, dtype={"Is_EB": "boolean"})
 
         # convert the mapping needed from dataframe to a dictionary
         # to avoid the overhead of repeated dataframe access
