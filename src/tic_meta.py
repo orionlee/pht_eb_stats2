@@ -46,7 +46,8 @@ def get_and_save_tic_meta_of_all(
 
     if end_chunk_inclusive > max_chunk_id:
         print(
-            f"WARN end_chunk_inclusive {end_chunk_inclusive} is larger than actual num. of chunks. Set it to the largest {max_chunk_id}"
+            f"WARN end_chunk_inclusive {end_chunk_inclusive} is larger than actual "
+            f"num. of chunks. Set it to the largest {max_chunk_id}"
         )
         end_chunk_inclusive = max_chunk_id
 

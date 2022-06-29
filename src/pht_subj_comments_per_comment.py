@@ -17,7 +17,7 @@ def _to_summary_of_comment(comment, subject_id):
     # note: c["focus_id"] is usually subject_id practice,
     # but there might be cases that it is not (e.g., a comment posted on Chat about a subject)
     # so I ask the caller to pass the subject_id instead.
-    discussion_id = c["discussion_id"]  #  it's probably not useful. Grab it for just in case.
+    discussion_id = c["discussion_id"]  # it's probably not useful. Grab it for just in case.
     tag_dict = c["tagging"]
     body = c["body"]
     is_deleted = c["is_deleted"]

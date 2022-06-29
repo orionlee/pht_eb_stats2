@@ -21,7 +21,7 @@ def _get_subject_meta_of_id(id, json=False):
     subject = res["subjects"][0]
     img_url = subject["locations"][0].get("image/png", "")
     img_id = img_url
-    match_res = re.match("https://panoptes-uploads.zooniverse.org\/subject_location\/(.+)[.]png", img_url)
+    match_res = re.match(r"https://panoptes-uploads.zooniverse.org/subject_location/(.+)[.]png", img_url)
     if match_res is not None:
         img_id = match_res[1]
     res = dict(

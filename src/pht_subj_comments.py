@@ -12,7 +12,10 @@ TEN_SECONDS = 10
 @sleep_and_retry
 @limits(calls=NUM_CALLS, period=TEN_SECONDS)
 def _get_subject_comment_of_id_n_page(id, page):
-    url = f"https://talk.zooniverse.org/comments?http_cache=true&section=project-7929&focus_type=Subject&sort=-created_at&focus_id={id}&page={page}"
+    url = (
+        f"https://talk.zooniverse.org/comments?http_cache=true&section=project-7929&focus_type=Subject"
+        f"&sort=-created_at&focus_id={id}&page={page}"
+    )
     return fetch_json(url)
 
 
