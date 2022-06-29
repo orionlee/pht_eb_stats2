@@ -1,9 +1,9 @@
 import argparse
 import pandas as pd
 
-import tqdm
+from tqdm import tqdm
 
-from common import *
+from common import to_csv
 import pht_subj_comments_per_subject
 import simbad_meta
 import tic_pht_stats

@@ -2,5 +2,4 @@
 # to keep flake8 consistent with black
 max-line-length = 127
 # E203 to be compatible with black
-# F403,F405: enable `from common import *` to be used for now
-extend-ignore = E203,F405,F403
+extend-ignore = E203

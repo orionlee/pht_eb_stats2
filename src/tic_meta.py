@@ -6,7 +6,8 @@ import pandas as pd
 
 from ratelimit import limits, sleep_and_retry
 
-from common import *
+from common import bulk_process, has_value, load_tic_ids_from_file
+
 
 # throttle HTTP calls to MAST
 # somewhat large result set (~1000 rows), so I set a conservative throttle to be extra safe

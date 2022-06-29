@@ -1,8 +1,9 @@
+import json
 from pathlib import Path
 
 from ratelimit import limits, sleep_and_retry
 
-from common import *
+from common import fetch_json, bulk_process, json_np_dump, load_subject_ids_from_file
 
 # throttle HTTP calls to Zooniverse
 NUM_CALLS = 5

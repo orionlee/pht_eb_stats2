@@ -2,9 +2,11 @@ import csv
 from pathlib import Path
 import re
 
+import pandas as pd
 from ratelimit import limits, sleep_and_retry
 
-from common import *
+from common import fetch_json, bulk_process, load_subject_ids_from_file
+
 
 # throttle HTTP calls to Zooniverse
 NUM_CALLS = 5

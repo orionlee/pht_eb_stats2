@@ -8,9 +8,12 @@ from astropy.table import Table
 from astroquery.simbad import Simbad
 from astroquery.xmatch import XMatch
 
+import numpy as np
+import pandas as pd
+
 from ratelimit import limits, sleep_and_retry
 
-from common import *
+from common import bulk_process, fetch_json, has_value, to_csv, load_tic_ids_from_file
 import tic_meta
 
 # throttle HTTP calls to MAST

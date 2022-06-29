@@ -1,6 +1,8 @@
 import numpy as np
 
-from common import *
+import pandas as pd
+
+from common import to_csv
 
 from pht_subj_comments_per_comment import load_comment_summaries_table_from_file
 

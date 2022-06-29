@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 from ratelimit import limits, sleep_and_retry
 
-from common import *
+from common import fetch_json, bulk_process
 
 # throttle HTTP calls to Zooniverse
 NUM_CALLS = 5
