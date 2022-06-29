@@ -1,5 +1,10 @@
 __pycache__/
 .ipynb_checkpoints/
 
+# a scratch notebook for code experiments
+src/scratch.ipynb
+
+# data downloaded locally for further processing
 src/cache/
+
 tmp/
