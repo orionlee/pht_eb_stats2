@@ -8,7 +8,7 @@ def _to_score_group(val, max_cap):
     return res
 
 
-def pivot_by_eb_score_group(df_catalog):
+def pivot_by_eb_score_group(df_catalog, also_return_styler=False):
 
     df = df_catalog.copy(deep=False)
 
@@ -45,10 +45,12 @@ def pivot_by_eb_score_group(df_catalog):
     col_key_t_over_t_f = ("count", "tic_id", "T/(T+F)")
     report[col_key_t_over_t_f] = col_t_over_t_f
 
-    # tweak output formatting. TODO: it does not work yet
-    report.style.format({
-        col_key_t_over_t_f: "{:.2%}",  # use percentage
-    })
-
-    return report
+    if not also_return_styler:
+        return report
+    else:
+        # tweak output formatting.
+        styler = report.style.format({
+            col_key_t_over_t_f: "{:.2%}",  # use percentage
+        })
+        return report, styler
 
