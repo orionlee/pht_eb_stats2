@@ -144,6 +144,24 @@ mapping table. The mapping needs to be updated if an `OTYPE` value is not includ
     - 925 TICs with some SIMBAD records, but are deemed to be likely false matches
     - 444 TIcs with no SIMBAD records
 
+
+## VSX data
+
+Outputs:
+
+- `../data/vsx_meta.py`
+- `../data/vsx_is_eb.csv`
+
+Steps:
+
+1. Get VSX records using Vizier Crossmatch (`xmatch_and_save_vsx_meta_of_all_by_tics()`)
+2. Process crossmatch result to find the best match for each TIC (`find_and_save_vsx_best_xmatch_meta()`)
+3. Map variable types in the resulting VSX meta to `Is_EB`  (TBD)
+
+```shell
+python vsx_meta.py
+```
+
 ## PHT EB Candidate Catalog
 
 ### Create a preliminary catalog
