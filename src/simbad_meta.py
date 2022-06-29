@@ -18,10 +18,11 @@ import tic_meta
 NUM_CALLS = 1
 PERIOD_IN_SECONDS = 20
 
+
 def _get_simbad(add_typed_id=False):
     simbad = Simbad()
 
-    simbad.remove_votable_fields('coordinates')
+    simbad.remove_votable_fields("coordinates")
     if add_typed_id:
         simbad.add_votable_fields("typed_id")
     fields_to_add = [
@@ -39,9 +40,10 @@ def _get_simbad(add_typed_id=False):
         "flux(G)",
         "flux(J)",
         "ids",
-        ]
+    ]
     simbad.add_votable_fields(*fields_to_add)
     return simbad
+
 
 def _format_result(res):
     # format output result
@@ -50,6 +52,7 @@ def _format_result(res):
     # column "SCRIPT_NUMBER_ID": retained for now as it could be useful for troubleshooting
     # , as it is referenced by SIMBAD warnings/ errors.
 
+
 @sleep_and_retry
 @limits(calls=NUM_CALLS, period=PERIOD_IN_SECONDS)
 def _get_simbad_meta_of_tics(tics):
@@ -57,8 +60,9 @@ def _get_simbad_meta_of_tics(tics):
     res = simbad.query_objects([f"TIC {id}" for id in tics])
     _format_result(res)
     res.rename_column("TYPED_ID", "TIC_ID")
-    res["TIC_ID"] = [int(s.replace('TIC ', '')) for s in res["TIC_ID"]]
+    res["TIC_ID"] = [int(s.replace("TIC ", "")) for s in res["TIC_ID"]]
     return res
+
 
 @sleep_and_retry
 @limits(calls=NUM_CALLS, period=PERIOD_IN_SECONDS)
@@ -69,7 +73,13 @@ def _get_simbad_meta_of_ids(ids):
     return res
 
 
-def _get_simbad_meta_of_coordinates(ra, dec, coord_kwargs=dict(unit=u.deg, frame="icrs", equinox="J2000"), radius=2 * u.arcmin, max_rows_per_coord=5,):
+def _get_simbad_meta_of_coordinates(
+    ra,
+    dec,
+    coord_kwargs=dict(unit=u.deg, frame="icrs", equinox="J2000"),
+    radius=2 * u.arcmin,
+    max_rows_per_coord=5,
+):
     coord = SkyCoord(ra=ra, dec=dec, **coord_kwargs)
     simbad = _get_simbad(add_typed_id=True)
     res = simbad.query_region(coord, radius=radius)
@@ -95,7 +105,7 @@ def xmatch_and_save_all_unmatched_tics():
 
     # we just care about the main_id returned, as we will use teh main_id to query the up-to-date metadata from SIMBAD later
     # I don't know how to tell XMatch to not include the other columns
-    res = XMatch.query(cat1=src_tab, cat2="simbad", max_distance=180*u.arcsec, colRA1="TIC_RA", colDec1="TIC_DEC")
+    res = XMatch.query(cat1=src_tab, cat2="simbad", max_distance=180 * u.arcsec, colRA1="TIC_RA", colDec1="TIC_DEC")
 
     to_csv(res, out_path, mode="w")
 
@@ -118,7 +128,9 @@ def get_and_save_simbad_meta_of_all_by_tics(chunk_size=1000, start_chunk=0, end_
         end_chunk_inclusive = max_chunk_id
 
     if end_chunk_inclusive > max_chunk_id:
-        print(f"WARN end_chunk_inclusive {end_chunk_inclusive} is larger than actual num. of chunks. Set it to the largest {max_chunk_id}")
+        print(
+            f"WARN end_chunk_inclusive {end_chunk_inclusive} is larger than actual num. of chunks. Set it to the largest {max_chunk_id}"
+        )
         end_chunk_inclusive = max_chunk_id
 
     id_chunks = id_chunks[slice(start_chunk, end_chunk_inclusive + 1)]
@@ -127,7 +139,11 @@ def get_and_save_simbad_meta_of_all_by_tics(chunk_size=1000, start_chunk=0, end_
     out_path = "cache/simbad_meta_by_ticid.csv"
     kwargs_list = [dict(tics=ids) for ids in id_chunks]
 
-    bulk_process(_get_simbad_meta_of_tics, kwargs_list, process_result_func=lambda res, call_i, call_kwargs: _save_simbad_meta(res, out_path))
+    bulk_process(
+        _get_simbad_meta_of_tics,
+        kwargs_list,
+        process_result_func=lambda res, call_i, call_kwargs: _save_simbad_meta(res, out_path),
+    )
 
 
 def load_simbad_meta_table_from_file(csv_path="../data/simbad_meta.csv"):
@@ -143,7 +159,10 @@ def _load_simbad_xmatch_table_from_file(csv_path="cache/simbad_tics_xmatch.csv",
         # based on: https://stackoverflow.com/a/41826756
         df = df.sort_values("angDist", ascending=True).groupby("TIC_ID").head(max_results_per_target)
 
-    df = df.sort_values(["TIC_ID", "angDist"], ascending=True, )
+    df = df.sort_values(
+        ["TIC_ID", "angDist"],
+        ascending=True,
+    )
     df = df.reset_index(drop=True)
 
     return df
@@ -153,7 +172,9 @@ def get_and_save_simbad_meta_of_all_by_xmatch(max_results_per_target=5):
     """For TICs not found by tic id lookup, use crossmatch result"""
     out_path = "cache/simbad_meta_candidates_by_xmatch.csv"
 
-    df_xmatch = _load_simbad_xmatch_table_from_file(csv_path="cache/simbad_tics_xmatch.csv", max_results_per_target=max_results_per_target)
+    df_xmatch = _load_simbad_xmatch_table_from_file(
+        csv_path="cache/simbad_tics_xmatch.csv", max_results_per_target=max_results_per_target
+    )
 
     # for expedience, I make 1 call rather than splitting it into smaller chunks
     # empirically, I know the result set size (~5000) is small enough to be done in 1 call.
@@ -180,14 +201,17 @@ def get_and_save_simbad_meta_of_all_by_xmatch(max_results_per_target=5):
 
 def _3val_flag_to_str(val):
     if val is None:
-        return '-'
+        return "-"
     elif val:
-        return 'T'
+        return "T"
     else:
-        return 'F'
+        return "F"
+
 
 class MatchResult(SimpleNamespace):
-    def __init__(self, mag, mag_band, mag_diff, pm, pmra_diff_pct, pmdec_diff_pct, plx, plx_diff_pct, aliases, num_aliases_matched):
+    def __init__(
+        self, mag, mag_band, mag_diff, pm, pmra_diff_pct, pmdec_diff_pct, plx, plx_diff_pct, aliases, num_aliases_matched
+    ):
         self.mag = mag
         self.mag_band = mag_band
         self.mag_diff = mag_diff
@@ -214,7 +238,6 @@ class MatchResult(SimpleNamespace):
         return np.sum(scores)
 
 
-
 def _calc_matches(simbad_meta_row, tic_meta_row):
 
     max_mag_diff = 1.0
@@ -229,7 +252,9 @@ def _calc_matches(simbad_meta_row, tic_meta_row):
                 return diff
             else:
                 if val1 == 0:
-                    print(f"WARN in calculating the difference percentage of {label} , division by zero happens. returning nan")
+                    print(
+                        f"WARN in calculating the difference percentage of {label} , division by zero happens. returning nan"
+                    )
                     return np.nan
                 else:
                     return 100.0 * diff / np.abs(val1)
@@ -239,7 +264,7 @@ def _calc_matches(simbad_meta_row, tic_meta_row):
     tic_label = f"TIC {tic_meta_row['ID']}"
 
     bands_t = ["Vmag", "Tmag", "GAIAmag", "Bmag"]  # in TIC
-    bands_s = ["FLUX_V", "FLUX_R", "FLUX_G",  "FLUX_B"]  # in SIMBAD
+    bands_s = ["FLUX_V", "FLUX_R", "FLUX_G", "FLUX_B"]  # in SIMBAD
     mag_match = None
     mag_match_band = None
     mag_diff = None
@@ -256,7 +281,7 @@ def _calc_matches(simbad_meta_row, tic_meta_row):
 
     pm_match = None
     if pmra_diff_pct is not None and pmdec_diff_pct is not None:
-        if  pmra_diff_pct < max_pmra_diff_pct and pmdec_diff_pct < max_pmdec_diff_pct:
+        if pmra_diff_pct < max_pmra_diff_pct and pmdec_diff_pct < max_pmdec_diff_pct:
             pm_match = True
         else:
             pm_match = False
@@ -270,11 +295,21 @@ def _calc_matches(simbad_meta_row, tic_meta_row):
     simbad_aliases = get_aliases(simbad_meta_row)
     tic_aliases = tic_meta.get_aliases(tic_meta_row)
 
-    num_aliases_matched =  len([1 for a in tic_aliases if a in simbad_aliases])
+    num_aliases_matched = len([1 for a in tic_aliases if a in simbad_aliases])
     aliases_match = num_aliases_matched > 0
 
-
-    return MatchResult(mag_match, mag_match_band, mag_diff, pm_match, pmra_diff_pct, pmdec_diff_pct, plx_match, plx_diff_pct, aliases_match, num_aliases_matched)
+    return MatchResult(
+        mag_match,
+        mag_match_band,
+        mag_diff,
+        pm_match,
+        pmra_diff_pct,
+        pmdec_diff_pct,
+        plx_match,
+        plx_diff_pct,
+        aliases_match,
+        num_aliases_matched,
+    )
 
 
 def _calc_matches_for_all(df, df_tics, match_method_label, min_score_to_include=None):
@@ -377,8 +412,8 @@ def find_and_save_simbad_best_xmatch_meta(min_score_to_include=None):
     df_tics = tic_meta.load_tic_meta_table_from_file()
 
     df = _calc_matches_for_all(
-        df, df_tics, match_method_label="co",  # shorthand for co-ordinate
-        min_score_to_include=min_score_to_include)
+        df, df_tics, match_method_label="co", min_score_to_include=min_score_to_include  # shorthand for co-ordinate
+    )
 
     to_csv(df, out_path, mode="w")
 
@@ -402,9 +437,7 @@ def combine_and_save_simbad_meta_by_tics_and_xmatch(min_score_to_include=0):
 
     # 2. we add match scores (and angDist column) to make its schema the same as those from xmatch
     df_by_ticid["angDist"] = np.nan
-    df_by_ticid = _calc_matches_for_all(
-        df_by_ticid, df_tic_meta, match_method_label="tic",
-        min_score_to_include=None)
+    df_by_ticid = _calc_matches_for_all(df_by_ticid, df_tic_meta, match_method_label="tic", min_score_to_include=None)
 
     df = pd.concat([df_by_ticid, df_by_xmatch])
     df = df.sort_values("TIC_ID", ascending=True)
@@ -433,6 +466,7 @@ def get_aliases(simbad_meta_row):
 # Mapping SIMBAD type (OTYPE) to EB Classification
 #
 
+
 @unique
 class MapResult(Enum):
     def __new__(cls, value, label):
@@ -446,11 +480,12 @@ class MapResult(Enum):
     NOT_MAPPED = (2, "?")
     NA = (1, "-")
 
+
 class SIMBADTypeMapAccessor:
     def __init__(self, csv_path="../data/simbad_typemap.csv"):
         def _to_map_result(is_eb):
             if pd.isna(is_eb):
-                res =  MapResult.NA
+                res = MapResult.NA
             elif is_eb:
                 res = MapResult.TRUE
             else:
@@ -464,10 +499,9 @@ class SIMBADTypeMapAccessor:
         # convert the mapping needed from dataframe to a dictionary
         # to avoid the overhead of repeated dataframe access
         is_eb_col = [_to_map_result(is_eb) for is_eb in self.df["Is_EB"]]
-        self._otypes_dict = dict(zip(self.df["SIMBAD_Type"], is_eb_col ))
+        self._otypes_dict = dict(zip(self.df["SIMBAD_Type"], is_eb_col))
 
         self.not_mapped_otypes_seen = set()
-
 
     def _map_1_otype(self, otype):
         res = self._otypes_dict.get(otype, MapResult.NOT_MAPPED)
@@ -500,22 +534,25 @@ def map_and_save_simbad_otypes_of_all():
 def _to_typemap_df(otypes, default_is_eb_value=""):
     # use case: map a list of otypes that is previously not in OTYPES - IsEB map
     otypes_map = SIMBADOTypesAccessor().otypes
+
     def get_description(otype):
         r = otypes_map.get(otype)
         if r is not None:
             return f"{r.get('description', '')} | {r.get('category', '')} | {r.get('subcategory', '')}"
         else:
-            return ''
+            return ""
 
     is_eb = np.full_like(otypes, default_is_eb_value)
     description = [get_description(otype) for otype in otypes]
     notes = np.full_like(otypes, "")
-    df = pd.DataFrame({
-        "SIMBAD_Type": otypes,
-        "Is_EB": is_eb,
-        "Description": description,
-        "Notes": notes,
-        })
+    df = pd.DataFrame(
+        {
+            "SIMBAD_Type": otypes,
+            "Is_EB": is_eb,
+            "Description": description,
+            "Notes": notes,
+        }
+    )
     return df
 
 
@@ -524,8 +561,7 @@ def load_simbad_is_eb_table_from_file(csv_path="../data/simbad_is_eb.csv"):
     return df
 
 
-class SIMBADOTypesAccessor():
-
+class SIMBADOTypesAccessor:
     @classmethod
     def _get_otypes_from_remote(cls, url=None):
         if url is None:
@@ -556,7 +592,7 @@ class SIMBADOTypesAccessor():
                 self.otypes[key] = row
 
 
-if __name__ =="__main__":
+if __name__ == "__main__":
     # 1. process those that can be found by TIC id lookups
     # get_and_save_simbad_meta_of_all_by_tics()
 

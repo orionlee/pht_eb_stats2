@@ -3,11 +3,13 @@ import re
 from common import *
 from pht_subj_comments import load_subject_comments_of_id_from_file
 
+
 def _abbrev_bool(bool_val):
     if bool_val:
         return 1
     else:
         return 0
+
 
 def _to_summary_of_comment(comment, subject_id):
     c = comment  # shortcut
@@ -59,15 +61,17 @@ def load_comment_summaries_table_from_file(table_csv_path="cache/comments_summar
     df = pd.read_csv(
         table_csv_path,
         keep_default_na=False,  # so that empty string in tags won't be read as NaN
-        parse_dates=["updated_at",],
+        parse_dates=[
+            "updated_at",
+        ],
         dtype=dict(is_deleted=bool),
-        )
+    )
     if not include_is_deleted:
         df = df[~df["is_deleted"]].reset_index(drop=True)
     return df
 
 
-if __name__ =="__main__":
+if __name__ == "__main__":
     ids = load_subject_ids_from_file()
     print(f"Comment summaries for {len(ids)} subjects: {ids[0]} ... {ids[-1]}")
     to_comment_summaries_of_subject_ids(ids, subject_result_func=save_comment_summaries)

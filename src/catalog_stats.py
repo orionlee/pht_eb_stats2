@@ -22,8 +22,8 @@ def pivot_by_eb_score_group(df_catalog, also_return_styler=False):
         values=["tic_id"],
         aggfunc=["count"],
         margins=True,
-        margins_name="Totals"
-        )
+        margins_name="Totals",
+    )
     # print("DBG pivot table columns:", report.columns)
 
     # sort descending by eb_score_group (in the index)
@@ -31,12 +31,12 @@ def pivot_by_eb_score_group(df_catalog, also_return_styler=False):
     report.sort_values(["sort_key", "eb_score_group"], ascending=[True, False], inplace=True)
     report.drop("sort_key", axis=1, inplace=True)
 
-    col_key_t = ('count', 'tic_id', 'T')
-    col_key_f = ('count', 'tic_id', 'F')
-    col_key_na = ('count', 'tic_id', '-')
-    col_key_totals = ('count', 'tic_id', 'Totals')
+    col_key_t = ("count", "tic_id", "T")
+    col_key_f = ("count", "tic_id", "F")
+    col_key_na = ("count", "tic_id", "-")
+    col_key_totals = ("count", "tic_id", "Totals")
 
-    column_order = [ col_key_t, col_key_f, col_key_na, col_key_totals]
+    column_order = [col_key_t, col_key_f, col_key_na, col_key_totals]
     report = report.reindex(columns=column_order)
 
     # Add column of T / (T+F)
@@ -49,8 +49,9 @@ def pivot_by_eb_score_group(df_catalog, also_return_styler=False):
         return report
     else:
         # tweak output formatting.
-        styler = report.style.format({
-            col_key_t_over_t_f: "{:.2%}",  # use percentage
-        })
+        styler = report.style.format(
+            {
+                col_key_t_over_t_f: "{:.2%}",  # use percentage
+            }
+        )
         return report, styler
-

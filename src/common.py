@@ -19,7 +19,15 @@ def fetch_json(url):
     return r.json()
 
 
-def bulk_process(process_fn, process_kwargs_list, return_result=False, process_result_func=None, tqdm_kwargs=None, num_retries=2, retry_wait_time_seconds=30):
+def bulk_process(
+    process_fn,
+    process_kwargs_list,
+    return_result=False,
+    process_result_func=None,
+    tqdm_kwargs=None,
+    num_retries=2,
+    retry_wait_time_seconds=30,
+):
     if tqdm_kwargs is None:
         tqdm_kwargs = dict()
 
@@ -29,10 +37,10 @@ def bulk_process(process_fn, process_kwargs_list, return_result=False, process_r
         for try_num in range(1, num_retries + 1):
             try:
                 i_res = process_fn(**process_kwargs_list[i])
-                if (return_result):
+                if return_result:
                     res.append(i_res)
                 else:
-                    res.append(True) # indicate the process is a success, in case we support skipping those that lead to error
+                    res.append(True)  # indicate the process is a success, in case we support skipping those that lead to error
                 if process_result_func is not None:
                     process_result_func(i_res, i, process_kwargs_list[i])
                 break

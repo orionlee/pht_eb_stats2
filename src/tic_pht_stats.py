@@ -28,7 +28,9 @@ def calc_and_save_pht_stats(dry_run=False, dry_run_size=1000, also_return_df_sub
 
     # a sanity check
     if not (df_meta["subject_id"] == df_subjects["subject_id"]).all():
-        print("WARN Some subjects from PHT subject meta table (except simulation) are unexpectedly absent in the merge results")
+        print(
+            "WARN Some subjects from PHT subject meta table (except simulation) are unexpectedly absent in the merge results"
+        )
 
     # For each TIC, get the subject with the best eb_score (with most recent sector as the tiebreaker)
     df_subjects = df_subjects.sort_values(["tic_id", "eb_score", "sector"], ascending=[True, False, False])
@@ -45,11 +47,13 @@ def calc_and_save_pht_stats(dry_run=False, dry_run_size=1000, also_return_df_sub
     df_tics = pd.concat([df_tics_main, df_tics_extras], axis=1)
 
     # rename/rearrange the columns to make the result easier for inspection
-    df_tics = df_tics.rename(columns={
-        "subject_id": "best_subject_id",
-        "sector": "best_subject_sector",
-        "img_id": "best_subject_img_id",
-        })
+    df_tics = df_tics.rename(
+        columns={
+            "subject_id": "best_subject_id",
+            "sector": "best_subject_sector",
+            "img_id": "best_subject_img_id",
+        }
+    )
 
     # tic_id column is from df_tics_extras table
     # move it to the first

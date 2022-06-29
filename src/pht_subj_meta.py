@@ -10,6 +10,7 @@ from common import *
 NUM_CALLS = 5
 TEN_SECONDS = 10
 
+
 @sleep_and_retry
 @limits(calls=NUM_CALLS, period=TEN_SECONDS)
 def _get_subject_meta_of_id(id, json=False):
@@ -39,7 +40,7 @@ def get_subject_meta_of_ids(ids, subject_result_func=None):
 
 def save_meta_of_subject(subject_meta, call_i, call_kwargs):
     out_path = Path("../data/pht_subj_meta.csv")
-    fieldnames = ['subject_id', 'tic_id', 'sector', 'img_id']
+    fieldnames = ["subject_id", "tic_id", "sector", "img_id"]
     with open(out_path, "a") as f:
         csv_writer = csv.DictWriter(f, fieldnames, dialect="unix")
         csv_writer.writerow(subject_meta)
@@ -51,13 +52,12 @@ def load_subject_meta_table_from_file(table_csv_path="../data/pht_subj_meta.csv"
         df = df[df["tic_id"] > 0].reset_index(drop=True)
     return df
 
+
 #
 # Top level driver
 #
-if __name__ =="__main__":
+if __name__ == "__main__":
     ids = load_subject_ids_from_file()
     # ids = ids[1000:]
     print(f"Meta for {len(ids)} subjects: {ids[0]} ... {ids[-1]}")
     get_subject_meta_of_ids(ids, subject_result_func=save_meta_of_subject)
-
-

@@ -12,4 +12,3 @@ def save_tic_ids(**kwargs):
     df_out = pd.DataFrame(dict(tic_id=res))
     df_out.to_csv(out_path, index=False)  # ignore the row name (just the row number)
     return df_out
-

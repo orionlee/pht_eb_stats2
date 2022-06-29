@@ -79,17 +79,15 @@ def reprocess_all_mapping_and_save_pht_eb_candidate_catalog():
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Produce PHT EB Candidate catalog table.')
+    parser = argparse.ArgumentParser(description="Produce PHT EB Candidate catalog table.")
     parser.add_argument(
         "--remap",
         action="store_true",
-        help="Apply various mapping logic to produce the catalog, assuming the required data has been fetched."
-        )
+        help="Apply various mapping logic to produce the catalog, assuming the required data has been fetched.",
+    )
     parser.add_argument(
-        "--combine",
-        action="store_true",
-        help="Combine the underling tables to the catalog, no mapping logic is reapplied"
-        )
+        "--combine", action="store_true", help="Combine the underling tables to the catalog, no mapping logic is reapplied"
+    )
     args = parser.parse_args()
     # print(args)
 
