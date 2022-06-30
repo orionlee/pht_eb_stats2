@@ -1,0 +1,17 @@
+TIC_band,Wavelength,Notes
+u,354,"sloan u, UV"
+B,445,
+g,477,sloan g
+V,551,Johnson V
+r,623,sloan r
+GAIA,673,Gaia G broadband (FWHM 440nm)
+i,763,sloan i(near infra red)
+T,786,"TESS, span: 600-1000nm"
+z,913,sloan z
+J,1220,2MASS J
+H,1630,
+K,2190,
+w1,3368,"ALLWISE W1, 3.368μm"
+w2,4618,
+w3,12082,
+w4,22194,
