@@ -1,4 +1,6 @@
 import argparse
+
+import numpy as np
 import pandas as pd
 
 from tqdm import tqdm
@@ -7,6 +9,57 @@ from common import to_csv
 import pht_subj_comments_per_subject
 import simbad_meta
 import tic_pht_stats
+import vsx_meta
+
+
+# TODO: move to common
+def prefix_columns(df, prefix, **kwargs):
+    column_map = {col: f"{prefix}_{col}" for col in df.columns}
+    return df.rename(columns=column_map, **kwargs)
+
+
+def calc_is_eb_combined(*val_list_list):
+    """Combine the Is_EB results from multiple catalogs to produce an aggregate one.
+
+    The logic is similar to the "or" logic in Kleene three-value logic
+    (N/A is "-", i.e., no data for a catalog).
+    The one difference is that `False | NA` is considered `False` in our case, while it is
+    `NA` in three-value logic.
+
+    E.g., for a TIC, if VSX Is_EB is "F", and SIMBAD Is_EB is "-" (N/A, no data), we
+    consider the final result is False. The false response trumps no data.
+    """
+    num_cols = len(val_list_list)
+
+    # if input is pandas series, convert it to numpy array
+    # to make the 0-based indexing work
+    val_list_list = [v for v in val_list_list]  # convert the tuple to list to make assignment work
+    for j in range(num_cols):
+        if isinstance(val_list_list[j], pd.Series):
+            val_list_list[j] = val_list_list[j].to_numpy()
+
+    num_rows = len(val_list_list[0])
+    res = np.full(num_rows, "-")
+    for i in range(num_rows):
+        row_vals = [val_list_list[j][i] for j in range(num_cols)]
+        if "T" in row_vals:
+            cur_is_eb = "T"
+        elif "F" in row_vals:
+            cur_is_eb = "F"
+        else:  # result is "-" (no-data) only if all catalogs report so
+            cur_is_eb = "-"
+        res[i] = cur_is_eb
+
+    return res
+
+
+def test_calc_is_eb_combined():
+    # TODO: setup unit tests
+    val1 = pd.Series(["T", "T", "T", "F", "F", "-"])
+    val2 = pd.Series(["T", "F", "-", "F", "-", "-"])
+    val3 = calc_is_eb_combined(val1, val2)
+
+    assert (val3 == np.array(["T", "T", "T", "F", "F", "-"])).all()
 
 
 def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000):
@@ -16,18 +69,27 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000):
 
     df_pht = tic_pht_stats.load_tic_pht_stats_table_from_file()
     df_simbad = simbad_meta.load_simbad_is_eb_table_from_file()
+    df_vsx = vsx_meta.load_vsx_is_eb_table_from_file()
 
     if dry_run and dry_run_size is not None:
         df_pht = df_pht[:dry_run_size]
         df_simbad = df_simbad[:dry_run_size]
+        df_vsx = df_vsx[:dry_run_size]
 
-    # column-merge the 2 tables by tic_id
+    # column-merge the tables by tic_id
     df_pht.set_index("tic_id", drop=False, inplace=True)
     df_simbad.set_index("TIC_ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
-    df = pd.concat([df_pht, df_simbad], join="inner", axis=1)
+    df_vsx = vsx_meta.load_vsx_is_eb_table_from_file()
+    df_vsx.set_index("TIC_ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
+    prefix_columns(df_vsx, "VSX", inplace=True)
+    df = pd.concat([df_pht, df_simbad, df_vsx], join="outer", axis=1)
+
+    # Misc. type fixing after concat()
+    df["VSX_OID"] = df["VSX_OID"].astype("Int64")  # some cells is NA, so convert it to Nullable integer
+    df["VSX_V"] = df["VSX_V"].astype("Int64")  # some cells is NA, so convert it to Nullable integer
 
     # Note: this will be updated when we combine additional catalog
-    col_is_eb_catalog = df["Is_EB_SIMBAD"].copy()
+    col_is_eb_catalog = calc_is_eb_combined(df["Is_EB_SIMBAD"], df["VSX_Is_EB"])
 
     idx_tic_id = df.columns.get_loc("eb_score")
     df.insert(idx_tic_id, "is_eb_catalog", col_is_eb_catalog)
