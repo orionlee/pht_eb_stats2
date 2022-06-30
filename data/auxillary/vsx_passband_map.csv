@@ -1,5 +1,5 @@
 VSX_band,Description,TIC_band,Notes
-,Visual magnitude,V,
+,Visual magnitude,V,The list is primarily based on https://www.aavso.org/vsx/index.php?view=about.passbands
 *,Non-standard passband,GAIA,
 B,Johnson B,B,
 b,Strömgren b,B,
@@ -16,7 +16,7 @@ g,Sloan g,g,
 G,Gaia G passband (unfiltered),GAIA,
 g',Sloan g',g,
 H,2MASS H,H,
-HI-1A,Helios 1A passband,V,A guess based on Helios' mission (focused on sun)
+HI-1A,Helios 1A passband,GAIA,A guess based on Helios' mission (focused on sun)
 Hp,Hipparcos passband,V,
 I,Johnson I,i,
 i,Sloan i,i,
@@ -39,7 +39,7 @@ NUV,GALEX near-UV,u,
 o,ATLAS orange 560-820 nm,GAIA,
 p,Photographic,GAIA,
 P,Photographic,GAIA,
-pg,Photographic,GAIA,
+pg,photographic blue,B,"amended, based on Vizier VSX note 4"
 PH,Photographic,GAIA,
 pv,Photovisual,V,
 R,Johnson,r,
@@ -62,4 +62,10 @@ y,Strömgren y,J,
 z,Sloan z,z,
 z',Sloan z',z,
 [3.6],IRAC 3.6 µm,w1,
-TESS,,T,
+TESS,TESS passband,T,"Not in the master list, based on practical usage"
+w,white (clear),GAIA,based on Vizier VSX note 4
+C,white (clear),GAIA,based on Vizier VSX note 4
+rf,photographic red,r,based on Vizier VSX note 4
+bj,photographic blue,B,based on Vizier VSX note 4
+H1A,STEREO mission filter (essentially 600-800nm),GAIA,based on Vizier VSX note 4
+H1B,STEREO mission filter (essentially 600-800nm),GAIA,based on Vizier VSX note 4
