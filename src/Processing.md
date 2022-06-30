@@ -156,7 +156,10 @@ Steps:
 
 1. Get VSX records using Vizier Crossmatch (`xmatch_and_save_vsx_meta_of_all_by_tics()`)
 2. Process crossmatch result to find the best match for each TIC (`find_and_save_vsx_best_xmatch_meta()`)
-3. Map variable types in the resulting VSX meta to `Is_EB`  (TBD)
+3. Map variable types in the resulting VSX meta to `Is_EB`  (`map_and_save_vsx_is_eb_of_all()`)
+
+Note: the mapping between VSX `TYPE` to `Is_EB` is driven by `../data/auxillary/vsx_vartype_map.csv`
+mapping table. The mapping needs to be updated if an `OTYPE` value is not included there.
 
 ```shell
 python vsx_meta.py
@@ -167,7 +170,7 @@ Crossmatch best candidate selection TODOs:
 - Should CV band map to Gaia instead?, e.g. TIC 8769657
 - Consider to accept them if the  mag difference is between 1 and 1.5, and angular distance is close
 - review reject tables to see if the rejection is overly aggressive or just about right.
-
+- handle possible duplicates (`df["V"] == 3`)
 
 ## PHT EB Candidate Catalog
 

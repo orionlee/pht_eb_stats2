@@ -1,5 +1,8 @@
 import contextlib
+from enum import Enum, unique
+import re
 from typing import Callable
+
 import numpy as np
 
 import pandas as pd
@@ -242,8 +245,91 @@ def _create_tic_passband_preference_table():
     return df
 
 
+#
+# TODO: the MapResult and parts of TypeMapAccessor can be refactored with SIMBAD's equivalent
+#
+@unique
+class MapResult(Enum):
+    def __new__(cls, value, label):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        obj.label = label
+        return obj
+
+    TRUE = (4, "T")
+    FALSE = (3, "F")
+    NOT_MAPPED = (2, "?")
+    NA = (1, "-")
+
+
+class VSXTypeMapAccessor:
+    # `../data/auxillary/vsx_vartype_map.csv` is based on
+    # https://www.aavso.org/vsx/index.php?view=about.vartypes
+    # - `vsx_vartype_scrapper.js` is used to obtain the preliminary list
+    # - further manual editing is done to add the Variable group and IS_EB column.
+    def __init__(self, csv_path="../data/auxillary/vsx_vartype_map.csv"):
+        def _to_map_result(is_eb):
+            if pd.isna(is_eb):
+                res = MapResult.NA
+            elif is_eb:
+                res = MapResult.TRUE
+            else:
+                res = MapResult.FALSE
+            return res
+
+        # Is_EB column: Nullable boolean,
+        # N/A would mean the classification has no bearing on Is_EB
+        self.df = pd.read_csv(csv_path, dtype={"Is_EB": "boolean"})
+
+        # convert the mapping needed from dataframe to a dictionary
+        # to avoid the overhead of repeated dataframe access
+        is_eb_col = [_to_map_result(is_eb) for is_eb in self.df["Is_EB"]]
+        self._types_dict = dict(zip(self.df["VSX_Type"], is_eb_col))
+
+        self.not_mapped_types_seen = set()
+
+    def _map_1_type(self, type):
+        # VSX-specific processing, a type may end up :, indicating the classification is uncertain
+        type = re.sub(":$", "", type)
+        res = self._types_dict.get(type, MapResult.NOT_MAPPED)
+        if res == MapResult.NOT_MAPPED:
+            self.not_mapped_types_seen.add(type)
+        return res
+
+    def map(self, types):
+        if pd.isna(types):
+            return MapResult.NA
+        types = re.split(r"[|+/]", types)
+        res_list = [self._map_1_type(t).value for t in types]
+        best = np.max(res_list)
+        return MapResult(best)
+
+
+def map_and_save_vsx_is_eb_of_all():
+    out_path = "../data/vsx_is_eb.csv"
+    typemap = VSXTypeMapAccessor()
+    df = load_vsx_meta_table_from_file()
+
+    map_res = [typemap.map(types).label for types in df["Type"]]
+
+    # return a useful subset of columns, in addition to the EB map result
+    # TIC_ID,OID,n_OID,Name,V,Type,l_max,max,u_max,n_max,f_min,l_min,min,u_min,n_min,l_Period,Period,u_Period,RAJ2000,DEJ2000,angDist,Match_Score,Match_Mag_Band,Match_Mag_Diff
+    res = df[["OID", "n_OID", "V", "Name", "TIC_ID", "Type", "Period", "angDist", "Match_Score"]]
+    res.insert(5, "Is_EB", map_res)
+
+    to_csv(res, out_path, mode="w")
+    return res, list(typemap.not_mapped_types_seen)
+
+
+def load_vsx_is_eb_table_from_file(csv_path="../data/vsx_is_eb.csv"):
+    df = pd.read_csv(csv_path)
+    return df
+
+
 if __name__ == "__main__":
     # Get crossmatch result from Vizier / VSX
     xmatch_and_save_vsx_meta_of_all_by_tics()
     # Process the result to find the best matches.
     find_and_save_vsx_best_xmatch_meta(min_score_to_include=0)
+    # For each VSX record, map `Is_EB`
+    map_and_save_vsx_is_eb_of_all()
