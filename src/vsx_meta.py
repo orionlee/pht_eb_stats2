@@ -50,11 +50,13 @@ def _load_vsx_match_table_from_file(csv_path="cache/vsx_tics_xmatch.csv"):
     df = pd.read_csv(
         csv_path,
         keep_default_na=True,
+        # For VSX band (in `n_max` and `n_min` columns), empty string is a proper value
+        # (visual magnitude). Use the converters to force panda treat
+        # them as empty string rather than NA
+        # (for all other columns, empty strings do mean NA)
+        # cf. https://stackoverflow.com/a/70172587
+        converters={"n_min": str, "n_max": str},
     )
-    # VSX band (in `n_max` and `n_min` columns) could be empty string
-    # we revert panda's behavior and convert them from N/A back to empty string
-    df.loc[pd.isna(df["n_max"]), ["n_max"]] = ""
-    df.loc[pd.isna(df["n_min"]), ["n_min"]] = ""
     return df
 
 
@@ -182,11 +184,9 @@ def find_and_save_vsx_best_xmatch_meta(dry_run=False, dry_run_size=1000, min_sco
 
 
 def load_vsx_meta_table_from_file(csv_path="../data/vsx_meta.csv"):
-    df = pd.read_csv(
-        csv_path,
-        keep_default_na=False,  # to keep empty string in VSX band as empty string
-    )
-    return df
+    # the final VSX meta table is so similar to the interim crossmatch table
+    # that the logic can be reused
+    return _load_vsx_match_table_from_file(csv_path)
 
 
 def _load_vsx_passband_map_from_file(csv_path="../data/auxillary/vsx_passband_map.csv", set_vsx_band_as_index=True):
