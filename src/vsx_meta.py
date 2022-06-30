@@ -148,6 +148,43 @@ def _load_vsx_passband_map_from_file(csv_path="../data/auxillary/vsx_passband_ma
     return df_passband_vsx_2_tic
 
 
+def _load_tic_passband_meta_from_file(csv_path="../data/auxillary/tic_passband_meta.csv", set_tic_band_as_index=True):
+    df = pd.read_csv(csv_path)
+    if set_tic_band_as_index:
+        df.set_index("TIC_band", drop=False, append=False, inplace=True)
+    return df
+
+
+def _create_tic_passband_preference_table():
+    df_tic_bands = _load_tic_passband_meta_from_file()
+
+    # For each band, we compute the difference between it and other bands,
+    # so as to create an ordered list of preference.
+    # E.g., caller has a VSX entry with magnitude in sloan g band
+    # `df["g"]` below will have an ordered list of TIC bands that is closest to sloan g
+
+    df_diff = pd.DataFrame()
+    for band in df_tic_bands["TIC_band"]:
+        band_wavelength = df_tic_bands.loc[band]["Wavelength"]
+        df_diff[band] = np.abs(df_tic_bands["Wavelength"] - band_wavelength, dtype=float)
+
+    # an override: for `V`` band, `B` will be chosen over `GAIA` based on wavelength difference
+    # (106 vs 122)
+    # however, because `GAIA` is very broadband, it is a better approximation
+    diff_v_and_b = df_diff["V"].loc["B"]
+    # the override to ensure GAIA will be ahead of B
+    # I make it a floating point number as an cue that the diff has been overridden.
+    df_diff["V"].loc["GAIA"] = diff_v_and_b - 0.1
+
+    df = pd.DataFrame()
+    for band in df_tic_bands["TIC_band"]:
+        band_pref = df_diff[band].sort_values()
+        df[band] = band_pref.index.to_numpy()  # the ordered list of band
+        df[f"{band}_diff"] = band_pref.to_numpy()  # the wavelength difference for reference
+
+    return df
+
+
 if __name__ == "__main__":
     # Get crossmatch result from Vizier / VSX
     xmatch_and_save_vsx_meta_of_all_by_tics()
