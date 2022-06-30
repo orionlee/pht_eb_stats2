@@ -133,9 +133,7 @@ def _calc_matches_for_all(df: pd.DataFrame, df_tics: pd.DataFrame):
         "Match_Mag_Diff": np.zeros(df_len, dtype=float),
     }
 
-    vsx_to_tic_band_map = _load_vsx_passband_map_from_file()
-    vsx_to_tic_band_map = vsx_to_tic_band_map["TIC_band"]  # the VSX_band is set to be the index by default
-    vsx_to_tic_band_map = vsx_to_tic_band_map.to_dict()  # TODO: move to helper
+    vsx_to_tic_band_map = _load_vsx_passband_map_from_file(as_dict=True)
 
     tic_band_preference_map = _create_tic_passband_preference_table()
 
@@ -189,15 +187,22 @@ def load_vsx_meta_table_from_file(csv_path="../data/vsx_meta.csv"):
     return _load_vsx_match_table_from_file(csv_path)
 
 
-def _load_vsx_passband_map_from_file(csv_path="../data/auxillary/vsx_passband_map.csv", set_vsx_band_as_index=True):
+def _load_vsx_passband_map_from_file(
+    csv_path="../data/auxillary/vsx_passband_map.csv", set_vsx_band_as_index=True, as_dict=False
+):
     df_passband_vsx_2_tic = pd.read_csv(
         csv_path,
         keep_default_na=False,  # to keep empty string in VSX band as empty string
     )
     # it is a domain table, VSX_band is typically the lookup key
-    if set_vsx_band_as_index:
+    if set_vsx_band_as_index or as_dict:
         df_passband_vsx_2_tic.set_index("VSX_band", drop=False, append=False, inplace=True)
-    return df_passband_vsx_2_tic
+
+    if as_dict:
+        # the dict's key is VSX_band, set in the set_index() call above
+        return df_passband_vsx_2_tic["TIC_band"].to_dict()
+    else:
+        return df_passband_vsx_2_tic
 
 
 def _load_tic_passband_meta_from_file(csv_path="../data/auxillary/tic_passband_meta.csv", set_tic_band_as_index=True):
