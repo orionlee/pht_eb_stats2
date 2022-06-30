@@ -88,6 +88,11 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000):
     df["VSX_OID"] = df["VSX_OID"].astype("Int64")  # some cells is NA, so convert it to Nullable integer
     df["VSX_V"] = df["VSX_V"].astype("Int64")  # some cells is NA, so convert it to Nullable integer
 
+    # after the table join, some Is_EB values would be NA,
+    # we backfill it with the preferred "-", the preferred value that indicates no data.
+    df["Is_EB_SIMBAD"] = df["Is_EB_SIMBAD"].fillna("-")
+    df["VSX_Is_EB"] = df["VSX_Is_EB"].fillna("-")
+
     # Note: this will be updated when we combine additional catalog
     col_is_eb_catalog = calc_is_eb_combined(df["Is_EB_SIMBAD"], df["VSX_Is_EB"])
 
