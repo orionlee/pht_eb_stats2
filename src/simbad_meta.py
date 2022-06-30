@@ -1,4 +1,3 @@
-from enum import Enum, unique
 import json
 from types import SimpleNamespace
 
@@ -13,7 +12,7 @@ import pandas as pd
 
 from ratelimit import limits, sleep_and_retry
 
-from common import bulk_process, fetch_json, has_value, insert, to_csv, load_tic_ids_from_file
+from common import bulk_process, fetch_json, has_value, insert, to_csv, load_tic_ids_from_file, AbstractTypeMapAccessor
 import tic_meta
 
 # throttle HTTP calls to MAST
@@ -469,60 +468,17 @@ def get_aliases(simbad_meta_row):
 #
 # Mapping SIMBAD type (OTYPE) to EB Classification
 #
-
-
-@unique
-class MapResult(Enum):
-    def __new__(cls, value, label):
-        obj = object.__new__(cls)
-        obj._value_ = value
-        obj.label = label
-        return obj
-
-    TRUE = (4, "T")
-    FALSE = (3, "F")
-    NOT_MAPPED = (2, "?")
-    NA = (1, "-")
-
-
-class SIMBADTypeMapAccessor:
+class SIMBADTypeMapAccessor(AbstractTypeMapAccessor):
     # Note:
     # `../data/simbad_typemap.csv` is constructed by
     # - turning a list of otypes to a table based on SIMBAD definition
     #   , from `_to_typemap_df()`
     # - manually enter Is_EB value
     def __init__(self, csv_path="../data/simbad_typemap.csv"):
-        def _to_map_result(is_eb):
-            if pd.isna(is_eb):
-                res = MapResult.NA
-            elif is_eb:
-                res = MapResult.TRUE
-            else:
-                res = MapResult.FALSE
-            return res
+        super().__init__(csv_path, "SIMBAD_Type")
 
-        # Is_EB column: Nullable boolean,
-        # N/A would mean the classification has no bearing on Is_EB
-        self.df = pd.read_csv(csv_path, dtype={"Is_EB": "boolean"})
-
-        # convert the mapping needed from dataframe to a dictionary
-        # to avoid the overhead of repeated dataframe access
-        is_eb_col = [_to_map_result(is_eb) for is_eb in self.df["Is_EB"]]
-        self._otypes_dict = dict(zip(self.df["SIMBAD_Type"], is_eb_col))
-
-        self.not_mapped_otypes_seen = set()
-
-    def _map_1_otype(self, otype):
-        res = self._otypes_dict.get(otype, MapResult.NOT_MAPPED)
-        if res == MapResult.NOT_MAPPED:
-            self.not_mapped_otypes_seen.add(otype)
-        return res
-
-    def map(self, otypes):
-        otypes = otypes.split("|")
-        res_list = [self._map_1_otype(ot).value for ot in otypes]
-        best = np.max(res_list)
-        return MapResult(best)
+    def _split_types_str(self, types_str):
+        return types_str.split("|")
 
 
 def map_and_save_simbad_otypes_of_all():
@@ -537,7 +493,7 @@ def map_and_save_simbad_otypes_of_all():
     insert(res, before_colname="OTYPES", colname="Is_EB", value=map_res)
 
     to_csv(res, out_path, mode="w")
-    return res, list(typemap.not_mapped_otypes_seen)
+    return res, list(typemap.not_mapped_types_seen)
 
 
 def _to_typemap_df(otypes, default_is_eb_value=""):
@@ -620,8 +576,8 @@ if __name__ == "__main__":
 
     # for each SIMBAD record, map it OTYPES to Is_EB
     # it depends on the mapping defined in `data/simbad_typemap.csv`
-    # simbad_is_eb_df, not_mapped_otypes_seen = map_and_save_simbad_otypes_of_all()
-    # if len(not_mapped_otypes_seen) > 0:
-    #     print(f"WARN: there are {len(not_mapped_otypes_seen)} number of OTYPE value not mapped.")
-    #     print(not_mapped_otypes_seen)
+    # simbad_is_eb_df, not_mapped_types_seen = map_and_save_simbad_otypes_of_all()
+    # if len(not_mapped_types_seen) > 0:
+    #     print(f"WARN: there are {len(not_mapped_types_seen)} number of OTYPE value not mapped.")
+    #     print(not_mapped_types_seen)
     pass

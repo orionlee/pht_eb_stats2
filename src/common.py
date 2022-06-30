@@ -1,5 +1,7 @@
+from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 import csv
+from enum import Enum, unique
 import json
 import os
 import time
@@ -159,3 +161,81 @@ def move(df: pd.DataFrame, colname: str, before_colname: str):
     col_to_move = df.pop(colname)
     loc = df.columns.get_loc(before_colname)
     return df.insert(loc, colname, col_to_move)
+
+
+#
+# Helpers to map a catalog's type(s) to Is_EB
+#
+
+
+@unique
+class MapResult(Enum):
+    """Used to represent the possible values of a `Is_EB` column"""
+
+    def __new__(cls, value, label):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        obj.label = label
+        return obj
+
+    TRUE = (4, "T")
+    FALSE = (3, "F")
+    NOT_MAPPED = (2, "?")
+    NA = (1, "-")
+
+
+class AbstractTypeMapAccessor(ABC):
+    def __init__(self, map_csv_path: str, type_colname: str, is_eb_colname: str = "Is_EB"):
+        """
+        Parameters
+        ----------
+        map_csv_path :
+            the path of the csv file that provides catalog type to `Is_EB` mapping
+        type_colname :
+            the name of the column in the csv for catalog type
+        is_eb_colname :
+            the name of the column in the csv for `Is_EB`. Defaulted to `Is_EB`
+        """
+
+        def _to_map_result(is_eb):
+            if pd.isna(is_eb):
+                res = MapResult.NA
+            elif is_eb:
+                res = MapResult.TRUE
+            else:
+                res = MapResult.FALSE
+            return res
+
+        # Is_EB column: Nullable boolean,
+        # N/A would mean the classification has no bearing on Is_EB
+        self.df = pd.read_csv(map_csv_path, dtype={is_eb_colname: "boolean"})
+
+        # convert the mapping needed from dataframe to a dictionary
+        # to avoid the overhead of repeated dataframe access
+        col_is_eb = [_to_map_result(is_eb) for is_eb in self.df[is_eb_colname]]
+        self._types_dict = dict(zip(self.df[type_colname], col_is_eb))
+
+        self.not_mapped_types_seen = set()
+
+    def _map_1_type(self, type: str) -> MapResult:
+        res = self._types_dict.get(type, MapResult.NOT_MAPPED)
+        if res == MapResult.NOT_MAPPED:
+            self.not_mapped_types_seen.add(type)
+        return res
+
+    @abstractmethod
+    def _split_types_str(self, types_str: str) -> Sequence:
+        """Split a catalog type list string into a list of type.
+
+        Subclass must implement the method.
+        """
+        pass
+
+    def map(self, types_str: str) -> MapResult:
+        """Given a catalog list type string, return the best Is_EB value."""
+        if pd.isna(types_str):
+            return MapResult.NA
+        types_str = self._split_types_str(types_str)
+        res_list = [self._map_1_type(t).value for t in types_str]
+        best = np.max(res_list)
+        return MapResult(best)
