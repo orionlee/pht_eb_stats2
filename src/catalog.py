@@ -5,17 +5,11 @@ import pandas as pd
 
 from tqdm import tqdm
 
-from common import to_csv
+from common import insert, to_csv, prefix_columns
 import pht_subj_comments_per_subject
 import simbad_meta
 import tic_pht_stats
 import vsx_meta
-
-
-# TODO: move to common
-def prefix_columns(df, prefix, **kwargs):
-    column_map = {col: f"{prefix}_{col}" for col in df.columns}
-    return df.rename(columns=column_map, **kwargs)
 
 
 def calc_is_eb_combined(*val_list_list):
@@ -58,8 +52,10 @@ def test_calc_is_eb_combined():
     val1 = pd.Series(["T", "T", "T", "F", "F", "-"])
     val2 = pd.Series(["T", "F", "-", "F", "-", "-"])
     val3 = calc_is_eb_combined(val1, val2)
-
     assert (val3 == np.array(["T", "T", "T", "F", "F", "-"])).all()
+
+
+test_calc_is_eb_combined()
 
 
 def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000):
@@ -97,8 +93,7 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000):
     # Note: this will be updated when we combine additional catalog
     col_is_eb_catalog = calc_is_eb_combined(df["SIMBAD_Is_EB"], df["VSX_Is_EB"])
 
-    idx_tic_id = df.columns.get_loc("eb_score")
-    df.insert(idx_tic_id, "is_eb_catalog", col_is_eb_catalog)
+    insert(df, before_colname="eb_score", colname="is_eb_catalog", value=col_is_eb_catalog)
 
     if not dry_run:
         to_csv(df, out_path, mode="w")

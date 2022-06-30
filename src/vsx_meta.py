@@ -16,7 +16,7 @@ with contextlib.redirect_stdout(None):
 from astropy import units as u
 from astropy.table import Table
 
-from common import to_csv
+from common import insert, move, to_csv
 import tic_meta
 
 
@@ -154,9 +154,7 @@ def _calc_matches_for_all(df: pd.DataFrame, df_tics: pd.DataFrame):
     df.drop(["TIC_RA", "TIC_DEC"], axis=1, inplace=True)  # not useful. They are already in tic_meta.csv
 
     # move angDist to before the matching columns at the end.
-    col_match_score = df.pop("angDist")
-    idx_match_score = df.columns.get_loc("Match_Score")
-    df.insert(idx_match_score, "angDist", col_match_score)
+    move(df, colname="angDist", before_colname="Match_Score")
 
     return df
 
@@ -315,7 +313,7 @@ def map_and_save_vsx_is_eb_of_all():
     # return a useful subset of columns, in addition to the EB map result
     # TIC_ID,OID,n_OID,Name,V,Type,l_max,max,u_max,n_max,f_min,l_min,min,u_min,n_min,l_Period,Period,u_Period,RAJ2000,DEJ2000,angDist,Match_Score,Match_Mag_Band,Match_Mag_Diff
     res = df[["OID", "n_OID", "V", "Name", "TIC_ID", "Type", "Period", "angDist", "Match_Score"]]
-    res.insert(5, "Is_EB", map_res)
+    insert(res, before_colname="Type", colname="Is_EB", value=map_res)
 
     to_csv(res, out_path, mode="w")
     return res, list(typemap.not_mapped_types_seen)

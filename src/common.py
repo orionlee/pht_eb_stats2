@@ -134,5 +134,28 @@ def to_csv(data, out_path, mode="a", fieldnames=None):
         raise TypeError(f"Unsupported type for `data`: {type(dict)}")
 
 
+#
+# Pandas Utilities
+#
+
+
 def has_value(val):
     return not pd.isna(val)
+
+
+def prefix_columns(df: pd.DataFrame, prefix: str, **kwargs):
+    column_map = {col: f"{prefix}_{col}" for col in df.columns}
+    return df.rename(columns=column_map, **kwargs)
+
+
+def insert(df: pd.DataFrame, before_colname: str, colname: str, value):
+    """Insert the `(colname, value)` as a new column before `loc_colname`."""
+    loc = df.columns.get_loc(before_colname)
+    return df.insert(loc, colname, value)
+
+
+def move(df: pd.DataFrame, colname: str, before_colname: str):
+    """Move the column `move_colname` before the column `loc_colname`."""
+    col_to_move = df.pop(colname)
+    loc = df.columns.get_loc(before_colname)
+    return df.insert(loc, colname, col_to_move)
