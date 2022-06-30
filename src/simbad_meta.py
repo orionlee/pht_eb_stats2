@@ -486,6 +486,11 @@ class MapResult(Enum):
 
 
 class SIMBADTypeMapAccessor:
+    # Note:
+    # `../data/simbad_typemap.csv` is constructed by
+    # - turning a list of otypes to a table based on SIMBAD definition
+    #   , from `_to_typemap_df()`
+    # - manually enter Is_EB value
     def __init__(self, csv_path="../data/simbad_typemap.csv"):
         def _to_map_result(is_eb):
             if pd.isna(is_eb):
