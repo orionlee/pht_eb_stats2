@@ -162,6 +162,14 @@ Steps:
 python vsx_meta.py
 ```
 
+Crossmatch best candidate selection TODOs:
+
+- Should CV band map to Gaia instead?, e.g. TIC 8769657
+- Consider to accept them if the  mag difference is between 1 and 1.5, and angular distance is close
+- how best to handle empty string values (vsx_meta has many)
+- review reject tables to see if the rejection is overly aggressive or just about right.
+
+
 ## PHT EB Candidate Catalog
 
 ### Create a preliminary catalog
