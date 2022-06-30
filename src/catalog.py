@@ -79,6 +79,7 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000):
     # column-merge the tables by tic_id
     df_pht.set_index("tic_id", drop=False, inplace=True)
     df_simbad.set_index("TIC_ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
+    prefix_columns(df_simbad, "SIMBAD", inplace=True)
     df_vsx = vsx_meta.load_vsx_is_eb_table_from_file()
     df_vsx.set_index("TIC_ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
     prefix_columns(df_vsx, "VSX", inplace=True)
@@ -90,11 +91,11 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000):
 
     # after the table join, some Is_EB values would be NA,
     # we backfill it with the preferred "-", the preferred value that indicates no data.
-    df["Is_EB_SIMBAD"] = df["Is_EB_SIMBAD"].fillna("-")
+    df["SIMBAD_Is_EB"] = df["SIMBAD_Is_EB"].fillna("-")
     df["VSX_Is_EB"] = df["VSX_Is_EB"].fillna("-")
 
     # Note: this will be updated when we combine additional catalog
-    col_is_eb_catalog = calc_is_eb_combined(df["Is_EB_SIMBAD"], df["VSX_Is_EB"])
+    col_is_eb_catalog = calc_is_eb_combined(df["SIMBAD_Is_EB"], df["VSX_Is_EB"])
 
     idx_tic_id = df.columns.get_loc("eb_score")
     df.insert(idx_tic_id, "is_eb_catalog", col_is_eb_catalog)
@@ -111,7 +112,7 @@ def load_pht_eb_candidate_catalog_from_file(csv_path="../data/catalog_pht_eb_can
 
 
 def reprocess_all_mapping_and_save_pht_eb_candidate_catalog():
-    with tqdm(total=5) as pbar:
+    with tqdm(total=7) as pbar:
 
         pbar.set_description("Reprocessing all mapping to produce the catalog")
 
@@ -136,6 +137,18 @@ def reprocess_all_mapping_and_save_pht_eb_candidate_catalog():
         # , affected by
         # - OTYPE mapping table: `../data/simbad_typemap.csv`
         simbad_meta.map_and_save_simbad_otypes_of_all()
+        pbar.update(1)
+
+        pbar.write("VSX metadata")
+        # , affected by
+        # - crossmatch logic (primarily on Match_score calculation)
+        vsx_meta.find_and_save_vsx_best_xmatch_meta(min_score_to_include=0)
+        pbar.update(1)
+
+        pbar.write("VSX Is_EB table")
+        # , affected by
+        # - VSX Type mapping table: `../data/auxillary/vsx_vartype_map.csv`
+        vsx_meta.map_and_save_vsx_is_eb_of_all()
         pbar.update(1)
 
         pbar.write("Overall catalog")

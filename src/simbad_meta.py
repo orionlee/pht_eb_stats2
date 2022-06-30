@@ -534,7 +534,7 @@ def map_and_save_simbad_otypes_of_all():
 
     # return a useful subset of columns, in addition to the EB map result
     res = df[["MAIN_ID", "TIC_ID", "OTYPES", "V__vartyp", "angDist", "Match_Score"]]
-    res.insert(2, "Is_EB_SIMBAD", map_res)
+    res.insert(2, "Is_EB", map_res)
 
     to_csv(res, out_path, mode="w")
     return res, list(typemap.not_mapped_otypes_seen)
