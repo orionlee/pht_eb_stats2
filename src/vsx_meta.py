@@ -47,7 +47,10 @@ def xmatch_and_save_vsx_meta_of_all_by_tics(dry_run=False, dry_run_size=1000):
 
 
 def _load_vsx_match_table_from_file(csv_path="cache/vsx_tics_xmatch.csv"):
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(
+        csv_path,
+        keep_default_na=False,  # to keep empty string in n_max column (VSX band) as empty string
+    )
     return df
 
 
@@ -124,6 +127,25 @@ def find_and_save_vsx_best_xmatch_meta(dry_run=False, dry_run_size=1000, min_sco
         to_csv(df_rejected, out_path_rejected, mode="w")
 
     return df_accepted, df_rejected
+
+
+def load_vsx_meta_table_from_file(csv_path="../data/vsx_meta.csv"):
+    df = pd.read_csv(
+        csv_path,
+        keep_default_na=False,  # to keep empty string in VSX band as empty string
+    )
+    return df
+
+
+def _load_vsx_passband_map_from_file(csv_path="../data/auxillary/vsx_passband_map.csv", set_vsx_band_as_index=True):
+    df_passband_vsx_2_tic = pd.read_csv(
+        csv_path,
+        keep_default_na=False,  # to keep empty string in VSX band as empty string
+    )
+    # it is a domain table, VSX_band is typically the lookup key
+    if set_vsx_band_as_index:
+        df_passband_vsx_2_tic.set_index("VSX_band", drop=False, append=False, inplace=True)
+    return df_passband_vsx_2_tic
 
 
 if __name__ == "__main__":
