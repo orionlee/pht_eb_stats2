@@ -163,6 +163,16 @@ def move(df: pd.DataFrame, colname: str, before_colname: str):
     return df.insert(loc, colname, col_to_move)
 
 
+def as_nullable_int(df: pd.DataFrame, columns: Sequence):
+    if isinstance(columns, str):
+        columns = [columns]
+
+    for c in columns:
+        df[c] = df[c].astype("Int64")
+
+    return df
+
+
 #
 # Helpers to map a catalog's type(s) to Is_EB
 #

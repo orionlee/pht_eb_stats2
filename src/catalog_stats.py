@@ -1,4 +1,4 @@
-from common import insert
+from common import as_nullable_int, insert
 from catalog import to_score_group
 
 
@@ -54,10 +54,7 @@ def pivot_by_eb_score_group(df_catalog, row="eb_score_group", group_max=7, colum
     col_key_t_over_t_f = ("count", "tic_id", "T/(T+F)")
     report[col_key_t_over_t_f] = col_t_over_t_f
 
-    report[col_key_t] = report[col_key_t].astype("Int64")
-    report[col_key_f] = report[col_key_f].astype("Int64")
-    report[col_key_na] = report[col_key_na].astype("Int64")
-    report[col_key_totals] = report[col_key_totals].astype("Int64")
+    as_nullable_int(report, [col_key_t, col_key_f, col_key_na, col_key_totals])
 
     if not also_return_styler:
         return report

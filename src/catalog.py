@@ -5,7 +5,7 @@ import pandas as pd
 
 from tqdm import tqdm
 
-from common import insert, to_csv, prefix_columns
+from common import as_nullable_int, insert, to_csv, prefix_columns
 import pht_subj_comments_per_subject
 import simbad_meta
 import tic_pht_stats
@@ -107,8 +107,7 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000, 
     df = pd.concat([df_pht, df_simbad, df_vsx], join="outer", axis=1)
 
     # Misc. type fixing after concat()
-    df["VSX_OID"] = df["VSX_OID"].astype("Int64")  # some cells is NA, so convert it to Nullable integer
-    df["VSX_V"] = df["VSX_V"].astype("Int64")  # some cells is NA, so convert it to Nullable integer
+    as_nullable_int(df, ["VSX_OID", "VSX_V"])  # some cells is NA, so convert it to nullable integer
 
     # after the table join, some Is_EB values would be NA,
     # we backfill it with the preferred "-", the preferred value that indicates no data.
