@@ -2,22 +2,6 @@ from common import as_nullable_int, insert
 from catalog import to_score_group
 
 
-# A commonly used column subset in the catalog
-CAT_COLS_COMMON = [
-    "tic_id",
-    "best_subject_id",
-    "is_eb_catalog",
-    "eb_score",
-    "SIMBAD_MAIN_ID",
-    "SIMBAD_OTYPES",
-    "SIMBAD_Is_EB",
-    "VSX_Name",
-    "VSX_Type",
-    "VSX_Is_EB",
-    "VSX_Period",
-]
-
-
 def pivot_by_eb_score_group(df_catalog, row="eb_score_group", group_max=7, columns="is_eb_catalog", also_return_styler=False):
     # dynamically compute a score group if needed
     if row not in df_catalog.columns and row.endswith("_group"):

@@ -1,3 +1,5 @@
+import urllib.parse
+
 import ipywidgets
 from ipywidgets import GridBox, Layout
 from IPython.display import display, HTML, Image
@@ -9,6 +11,51 @@ from matplotlib import pyplot as plt
 
 import tic_meta
 import catalog
+
+#
+# Constants to select commonly used column subsets from various catalogs
+#
+
+# For PHT EB catalog
+CAT_COLS_COMMON = [
+    "tic_id",
+    "best_subject_id",
+    "is_eb_catalog",
+    "eb_score",
+    "SIMBAD_MAIN_ID",
+    "SIMBAD_OTYPES",
+    "SIMBAD_Is_EB",
+    "VSX_OID",
+    # VSX_Name is more human friendly, but I can use OID and go to the VSX page directly
+    # "VSX_Name",
+    "VSX_Type",
+    "VSX_Is_EB",
+    "VSX_Period",
+]
+
+# For TIC Meta
+TIC_COLS_COMMON = [
+    "ID",
+    "Tmag",
+    "Vmag",
+    "contratio",
+    "Teff",
+    "rad",
+    "mass",
+    "rho",
+    "lumclass",
+    "lum",
+    "ra",
+    "dec",
+    "d",
+    "plx",
+    "pmRA",
+    "pmDEC",
+    "disposition",
+    "duplicate_id",
+    "priority",
+    "GAIA",
+]
 
 
 def two_columns(
@@ -65,30 +112,6 @@ _CATALOG_TIC_ID_COLNAME_ = {
     "tic_meta": "ID",
 }
 
-# TODO: move to catalog_stats.py
-TIC_COLS_COMMON = [
-    "ID",
-    "Tmag",
-    "Vmag",
-    "contratio",
-    "Teff",
-    "rad",
-    "mass",
-    "rho",
-    "lumclass",
-    "lum",
-    "ra",
-    "dec",
-    "d",
-    "plx",
-    "pmRA",
-    "pmDEC",
-    "disposition",
-    "duplicate_id",
-    "priority",
-    "GAIA",
-]
-
 
 def display_details(tic_id, type="tic_meta", brief=True):
     grid, col1, col2 = two_columns(also_return_outputs=True)
@@ -144,3 +167,54 @@ def plot_tic_on_hr(row_tic):
     ax.set_title(f"TIC {row_tic['ID']}")
 
     return ax
+
+
+def style(df_catalog, show_thumbnail=False):
+    def make_clickable(val, url_prefix, target, quote_val=False):
+        if pd.isna(val):
+            return val
+        val_in_url = val
+        if quote_val:
+            val_in_url = urllib.parse.quote_plus(str(val))
+        return f'<a target="{target}" href="{url_prefix}{val_in_url}">{val}</a>'
+
+    def make_tic_id_clickable(val):
+        return make_clickable(val, "https://exofop.ipac.caltech.edu/tess/target.php?id=", "_exofop")
+
+    def make_subject_id_clickable(val):
+        return make_clickable(
+            val, "https://www.zooniverse.org/projects/nora-dot-eisner/planet-hunters-tess/talk/subjects/", "_pht"
+        )
+
+    def make_simbad_id_clickable(val):
+        return make_clickable(val, "https://simbad.u-strasbg.fr/simbad/sim-basic?Ident=", "_simbad")
+
+    def make_vsx_id_clickable(val):
+        return make_clickable(val, "https://www.aavso.org/vsx/index.php?view=detail.top&oid=", "_vsx")
+
+    def make_subject_img_id_image(val):
+        # Note: setting custom dimension is a bit tricky and is abandoned for now.
+        # height can be changed with CSS height easily,
+        # but CSS width seems to be constrained by the overall table styling, and cannot make the image wider
+        # One probably needs to specify the styles on the column <tds>
+        return f'<img src="https://panoptes-uploads.zooniverse.org/subject_location/{val}.png">'
+
+    def abbreviate_simbad_otypes(val):
+        # hide common types not useful for analysis
+        if pd.isna(val):
+            return val
+        # remove generic types, also remove duplicates
+        return "|".join(set(val.split("|")) - set(["*", "PM*", "IR"]))
+
+    format_spec = {
+        "tic_id": make_tic_id_clickable,
+        "best_subject_id": make_subject_id_clickable,
+        "SIMBAD_MAIN_ID": make_simbad_id_clickable,
+        "SIMBAD_OTYPES": abbreviate_simbad_otypes,
+        "VSX_OID": make_vsx_id_clickable,
+    }
+
+    if show_thumbnail:
+        format_spec["best_subject_img_id"] = make_subject_img_id_image
+
+    return df_catalog.style.format(format_spec).hide(axis="index")
