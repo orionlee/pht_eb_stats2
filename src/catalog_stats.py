@@ -3,7 +3,7 @@ from catalog import to_score_group
 
 
 # A commonly used column subset in the catalog
-COLUMNS_COMMON = [
+CAT_COLS_COMMON = [
     "tic_id",
     "best_subject_id",
     "is_eb_catalog",
