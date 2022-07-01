@@ -172,6 +172,27 @@ Crossmatch best candidate selection TODOs:
 - review reject tables to see if the rejection is overly aggressive or just about right.
 - handle possible duplicates (`df["V"] == 3`)
 
+## ASAS-SN data
+
+Outputs:
+
+- `../data/asas_sn_meta.py`
+- `../data/asas_sn_is_eb.csv`
+
+Steps:
+
+1. Get ASAS-SN records using Vizier Crossmatch (`xmatch_and_save_asas_sn_meta_of_all_by_tics()`)
+2. Process crossmatch result to find the best match for each TIC (`find_and_save_asas_sn_best_xmatch_meta()`)
+   -  TODO: tyr to consider proper motion / distance, in addition to magnitude
+3. Map variable types in the resulting ASAS-SN meta to `Is_EB`  (`map_and_save_asas_sn_is_eb_of_all()`)
+
+Note: ASAS-SN variable type is the same as VSX.
+
+```shell
+python asas_sn_meta.py
+```
+
+
 ## PHT EB Candidate Catalog
 
 ### Create a preliminary catalog
@@ -183,6 +204,14 @@ Crossmatch best candidate selection TODOs:
 - Combine:
   - Per-TIC PHT Subject Statistics
   - SIMBAD results
+  - VSX results
+  - TODO: TIC metadata
+
+- TODO:
+  -  for VSX_Is_EB, if the tic has no matching VSX, consider to make it `NA` rather than `-`
+    - for cases with `-`, there is still classification, they aren't deemed helpful by initial mapping
+    - maybe for SIMBAD, but SIMBAD entries has generic typing like star that is almost certainly not useful
+
 
 ```shell
 python catalog.py --combine
