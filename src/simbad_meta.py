@@ -1,3 +1,4 @@
+import contextlib
 import json
 from types import SimpleNamespace
 
@@ -5,7 +6,12 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
 from astroquery.simbad import Simbad
-from astroquery.xmatch import XMatch
+
+with contextlib.redirect_stdout(None):
+    # Suppress the "Could not import regions" warning from XMatch.
+    # - it is a `print()`` call, so I have to redirect stdout,
+    # running the risk of missing some other warning
+    from astroquery.xmatch import XMatch
 
 import numpy as np
 import pandas as pd
