@@ -132,7 +132,11 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000, 
 
 
 def load_pht_eb_candidate_catalog_from_file(csv_path="../data/catalog_pht_eb_candidates.csv"):
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(
+        csv_path,
+        # force them to be nullable integer type column, to handle N/A cases
+        dtype={"VSX_OID": "Int64", "VSX_V": "Int64"},
+    )
     return df
 
 
