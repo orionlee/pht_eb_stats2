@@ -5,6 +5,8 @@ from IPython.display import display, HTML, Image
 import pandas as pd
 from memoization import cached
 
+from matplotlib import pyplot as plt
+
 import tic_meta
 import catalog
 
@@ -51,6 +53,9 @@ def get_catalog(type="pht_eb"):
         return catalog.load_pht_eb_candidate_catalog_from_file()
     elif type == "tic_meta":
         return tic_meta.load_tic_meta_table_from_file()
+    elif type == "hr":
+        # Use a small sample of the TICs to plot a simple HR plot
+        return tic_meta.load_tic_meta_table_from_file()[:500][["ID", "Teff", "lum"]]
     else:
         raise ValueError(f"Unsupported catalog type: {type}")
 
@@ -118,4 +123,24 @@ def display_details(tic_id, type="tic_meta", brief=True):
         img_url = f"https://panoptes-uploads.zooniverse.org/subject_location/{row_catalog['best_subject_img_id']}.png"
         display(Image(url=img_url))
 
+        df_tic = get_catalog("tic_meta")
+        row_tic = df_tic[df_tic["ID"] == tic_id].iloc[0]
+        display(plot_tic_on_hr(row_tic).get_figure())
+
     return display(grid)
+
+
+def plot_tic_on_hr(row_tic):
+    df_hr = get_catalog("hr")
+
+    ax = plt.figure().gca()
+    ax.scatter(df_hr["Teff"], df_hr["lum"], s=1, c="gray")
+    ax.invert_xaxis()
+    ax.set_yscale("log")
+    ax.set_xlabel("Teff (K)")
+    ax.set_ylabel("Luminosity (sun)")
+
+    ax.scatter(row_tic["Teff"], row_tic["lum"], s=128, c="red", marker="X")
+    ax.set_title(f"TIC {row_tic['ID']}")
+
+    return ax
