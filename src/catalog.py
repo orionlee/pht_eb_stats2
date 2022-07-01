@@ -58,7 +58,32 @@ def test_calc_is_eb_combined():
 test_calc_is_eb_combined()
 
 
-def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000):
+def to_score_group(val, max_cap):
+    """Format an eb_score to a string for grouping.
+
+    Values `>= max_cap` and `<= 0` would be grouped together.
+    The resulting string is formatted so that they can be lexically sorted.
+
+    Examples
+    --------
+
+    If `max_cap` is 7, the mapping is:
+    - 1 : `01`
+    - 7 : `07+`
+    - 8 : `07+`
+    - 0 : `00-`
+    - -2 : `00-`
+    """
+    if val >= max_cap:
+        res = f"0{max_cap}+"
+    elif val <= 0:
+        res = "00-"
+    else:
+        res = f"{val:02d}"
+    return res
+
+
+def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000, eb_score_group_max=7):
     # The resulting catalog would require additional filtering to exclude
     # those that are likely to be false positives
     out_path = "../data/catalog_pht_eb_candidates.csv"
@@ -90,10 +115,16 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000):
     df["SIMBAD_Is_EB"] = df["SIMBAD_Is_EB"].fillna("-")
     df["VSX_Is_EB"] = df["VSX_Is_EB"].fillna("-")
 
-    # Note: this will be updated when we combine additional catalog
+    # whether a TIC is seen as an EB in any of the catalogs
     col_is_eb_catalog = calc_is_eb_combined(df["SIMBAD_Is_EB"], df["VSX_Is_EB"])
-
     insert(df, before_colname="eb_score", colname="is_eb_catalog", value=col_is_eb_catalog)
+
+    # group eb_score to a smaller set,
+    # so that the extreme ones (negatives, larger eb score)
+    # are grouped together for reporting purpose
+    # we pre-compute it here, as eb_score_group is probably quite useful
+    col_eb_score_group = [to_score_group(score, eb_score_group_max) for score in df["eb_score"]]
+    insert(df, before_colname="eb_score", colname="eb_score_group", value=col_eb_score_group)
 
     if not dry_run:
         to_csv(df, out_path, mode="w")
