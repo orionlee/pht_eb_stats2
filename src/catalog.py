@@ -7,9 +7,10 @@ from tqdm import tqdm
 
 from common import as_nullable_int, insert, to_csv, prefix_columns
 import pht_subj_comments_per_subject
-import simbad_meta
 import tic_pht_stats
+import simbad_meta
 import vsx_meta
+import asas_sn_meta
 
 
 def calc_is_eb_combined(*val_list_list):
@@ -141,7 +142,7 @@ def load_pht_eb_candidate_catalog_from_file(csv_path="../data/catalog_pht_eb_can
 
 
 def reprocess_all_mapping_and_save_pht_eb_candidate_catalog():
-    with tqdm(total=7) as pbar:
+    with tqdm(total=9) as pbar:
 
         pbar.set_description("Reprocessing all mapping to produce the catalog")
 
@@ -165,7 +166,7 @@ def reprocess_all_mapping_and_save_pht_eb_candidate_catalog():
         pbar.write("SIMBAD Is_EB table")
         # , affected by
         # - OTYPE mapping table: `../data/simbad_typemap.csv`
-        simbad_meta.map_and_save_simbad_otypes_of_all()
+        simbad_meta.map_and_save_simbad_is_eb_of_all(warn_types_not_mapped=True)
         pbar.update(1)
 
         pbar.write("VSX metadata")
@@ -177,7 +178,19 @@ def reprocess_all_mapping_and_save_pht_eb_candidate_catalog():
         pbar.write("VSX Is_EB table")
         # , affected by
         # - VSX Type mapping table: `../data/auxillary/vsx_vartype_map.csv`
-        vsx_meta.map_and_save_vsx_is_eb_of_all()
+        vsx_meta.map_and_save_vsx_is_eb_of_all(warn_types_not_mapped=True)
+        pbar.update(1)
+
+        pbar.write("ASAS-SN metadata")
+        # , affected by
+        # - crossmatch logic (primarily on Match_score calculation)
+        asas_sn_meta.find_and_save_asas_sn_best_xmatch_meta(min_score_to_include=0)
+        pbar.update(1)
+
+        pbar.write("ASAS-SN Is_EB table")
+        # , affected by
+        # - VSX Type mapping table (ASAS-SN uses VSX var type)
+        asas_sn_meta.map_and_save_asas_sn_is_eb_of_all(warn_types_not_mapped=True)
         pbar.update(1)
 
         pbar.write("Overall catalog")

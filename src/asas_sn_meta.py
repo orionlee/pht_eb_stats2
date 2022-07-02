@@ -170,7 +170,7 @@ def load_asas_sn_meta_table_from_file(csv_path="../data/asas_sn_meta.csv"):
     return _load_asas_sn_xmatch_table_from_file(csv_path)
 
 
-def map_and_save_asas_sn_is_eb_of_all():
+def map_and_save_asas_sn_is_eb_of_all(warn_types_not_mapped=False):
     out_path = "../data/asas_sn_is_eb.csv"
     typemap = vsx_meta.VSXTypeMapAccessor()  # ASAS-SN uses VSX type
     df = load_asas_sn_meta_table_from_file()
@@ -183,7 +183,11 @@ def map_and_save_asas_sn_is_eb_of_all():
     insert(res, before_colname="Type", colname="Is_EB", value=map_res)
 
     to_csv(res, out_path, mode="w")
-    return res, list(typemap.not_mapped_types_seen)
+    not_mapped_types_seen = list(typemap.not_mapped_types_seen)
+    if warn_types_not_mapped and len(not_mapped_types_seen) > 1:
+        print(f"WARN: there are {len(not_mapped_types_seen)} number of TYPE value not mapped.")
+        print(not_mapped_types_seen)
+    return res, not_mapped_types_seen
 
 
 def load_asas_sn_is_eb_table_from_file(csv_path="../data/asas_sn_is_eb.csv"):
@@ -197,8 +201,4 @@ if __name__ == "__main__":
     # Process the result to find the best matches.
     find_and_save_asas_sn_best_xmatch_meta(min_score_to_include=0)
     # For each ASAS-SN record, map `Is_EB`
-    is_eb_df, not_mapped_types_seen = map_and_save_asas_sn_is_eb_of_all()
-    if len(not_mapped_types_seen) > 0:
-        print(f"WARN: there are {len(not_mapped_types_seen)} number of TYPE value not mapped.")
-        print(not_mapped_types_seen)
-    pass
+    map_and_save_asas_sn_is_eb_of_all(warn_types_not_mapped=True)

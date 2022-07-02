@@ -406,7 +406,7 @@ class SIMBADTypeMapAccessor(AbstractTypeMapAccessor):
         return types_str.split("|")
 
 
-def map_and_save_simbad_otypes_of_all():
+def map_and_save_simbad_is_eb_of_all(warn_types_not_mapped=False):
     out_path = "../data/simbad_is_eb.csv"
     typemap = SIMBADTypeMapAccessor()
     df = load_simbad_meta_table_from_file()
@@ -418,7 +418,11 @@ def map_and_save_simbad_otypes_of_all():
     insert(res, before_colname="OTYPES", colname="Is_EB", value=map_res)
 
     to_csv(res, out_path, mode="w")
-    return res, list(typemap.not_mapped_types_seen)
+    not_mapped_types_seen = list(typemap.not_mapped_types_seen)
+    if warn_types_not_mapped and len(not_mapped_types_seen) > 1:
+        print(f"WARN: there are {len(not_mapped_types_seen)} number of OTYPE value not mapped.")
+        print(not_mapped_types_seen)
+    return res, not_mapped_types_seen
 
 
 def _to_typemap_df(otypes, default_is_eb_value=""):
@@ -505,8 +509,4 @@ if __name__ == "__main__":
 
     # for each SIMBAD record, map it OTYPES to Is_EB
     # it depends on the mapping defined in `data/simbad_typemap.csv`
-    simbad_is_eb_df, not_mapped_types_seen = map_and_save_simbad_otypes_of_all()
-    if len(not_mapped_types_seen) > 0:
-        print(f"WARN: there are {len(not_mapped_types_seen)} number of OTYPE value not mapped.")
-        print(not_mapped_types_seen)
-    pass
+    map_and_save_simbad_is_eb_of_all(warn_types_not_mapped=True)

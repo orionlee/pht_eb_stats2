@@ -129,7 +129,7 @@ Output: `../data/simbad_meta.csv`
 
 #### 2e. For each SIMBAD record, map `Is_EB`, i.e., if it represents an eclipsing binary
 
-Done by `map_and_save_simbad_otypes_of_all()`
+Done by `map_and_save_simbad_is_eb_of_all()`
 Output: `../data/simbad_is_eb.csv`
 
 Note: the mapping between SIMBAD `OTYPE` to `Is_EB` is driven by `../data/simbad_typemap.csv`
@@ -183,7 +183,6 @@ Steps:
 
 1. Get ASAS-SN records using Vizier Crossmatch (`xmatch_and_save_asas_sn_meta_of_all_by_tics()`)
 2. Process crossmatch result to find the best match for each TIC (`find_and_save_asas_sn_best_xmatch_meta()`)
-   -  TODO: tyr to consider proper motion / distance, in addition to magnitude
 3. Map variable types in the resulting ASAS-SN meta to `Is_EB`  (`map_and_save_asas_sn_is_eb_of_all()`)
 
 Note: ASAS-SN variable type is the same as VSX.
