@@ -75,7 +75,9 @@ def to_score_group(val, max_cap):
     - 0 : `00-`
     - -2 : `00-`
     """
-    if val >= max_cap:
+    if pd.isna(val):
+        res = ""
+    elif val >= max_cap:
         res = f"0{max_cap}+"
     elif val <= 0:
         res = "00-"
@@ -92,31 +94,39 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000, 
     df_pht = tic_pht_stats.load_tic_pht_stats_table_from_file()
     df_simbad = simbad_meta.load_simbad_is_eb_table_from_file()
     df_vsx = vsx_meta.load_vsx_is_eb_table_from_file()
+    df_asas_sn = asas_sn_meta.load_asas_sn_is_eb_table_from_file()
 
     if dry_run and dry_run_size is not None:
         df_pht = df_pht[:dry_run_size]
         df_simbad = df_simbad[:dry_run_size]
         df_vsx = df_vsx[:dry_run_size]
+        df_asas_sn = df_asas_sn[:dry_run_size]
 
     # column-merge the tables by tic_id
     df_pht.set_index("tic_id", drop=False, inplace=True)
     df_simbad.set_index("TIC_ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
     prefix_columns(df_simbad, "SIMBAD", inplace=True)
-    df_vsx = vsx_meta.load_vsx_is_eb_table_from_file()
     df_vsx.set_index("TIC_ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
     prefix_columns(df_vsx, "VSX", inplace=True)
-    df = pd.concat([df_pht, df_simbad, df_vsx], join="outer", axis=1)
+    df_asas_sn.set_index("TIC_ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
+    # Rename the ASASSN-V (primary name used) to Name so that after adding ASASSN prefix,
+    # it will be "ASASSN_Name", similar to other catalogs.
+    df_asas_sn = df_asas_sn.rename(columns={"ASASSN-V": "Name"})
+    prefix_columns(df_asas_sn, "ASASSN", inplace=True)
+    df = pd.concat([df_pht, df_simbad, df_vsx, df_asas_sn], join="outer", axis=1)
 
     # Misc. type fixing after concat()
     as_nullable_int(df, ["VSX_OID", "VSX_V"])  # some cells is NA, so convert it to nullable integer
 
     # after the table join, some Is_EB values would be NA,
     # we backfill it with the preferred "-", the preferred value that indicates no data.
+    # TODO: we might want to revisit this decision
     df["SIMBAD_Is_EB"] = df["SIMBAD_Is_EB"].fillna("-")
     df["VSX_Is_EB"] = df["VSX_Is_EB"].fillna("-")
+    df["ASASSN_Is_EB"] = df["ASASSN_Is_EB"].fillna("-")
 
     # whether a TIC is seen as an EB in any of the catalogs
-    col_is_eb_catalog = calc_is_eb_combined(df["SIMBAD_Is_EB"], df["VSX_Is_EB"])
+    col_is_eb_catalog = calc_is_eb_combined(df["SIMBAD_Is_EB"], df["VSX_Is_EB"], df["ASASSN_Is_EB"])
     insert(df, before_colname="eb_score", colname="is_eb_catalog", value=col_is_eb_catalog)
 
     # group eb_score to a smaller set,
