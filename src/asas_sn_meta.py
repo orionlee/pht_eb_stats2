@@ -152,24 +152,16 @@ def _calc_matches_for_all(df: pd.DataFrame, df_tics: pd.DataFrame):
 def find_and_save_asas_sn_best_xmatch_meta(dry_run=False, dry_run_size=1000, min_score_to_include=0):
     out_path_accepted = "../data/asas_sn_meta.csv"
     out_path_rejected = "../data/asas_sn_meta_rejected.csv"  # those with low match score
-
     df_asas_sn = _load_asas_sn_xmatch_table_from_file()
-    df_tics = tic_meta.load_tic_meta_table_from_file()
-
-    if dry_run and dry_run_size is not None:
-        # the running time is drive by the xmatch table, so we limit it
-        df_asas_sn = df_asas_sn[:dry_run_size]
-
-    df = _calc_matches_for_all(df_asas_sn, df_tics)
-
-    df_accepted = df[df["Match_Score"] >= min_score_to_include].reset_index(drop=True)
-    df_rejected = df[df["Match_Score"] < min_score_to_include].reset_index(drop=True)
-
-    if not dry_run:
-        to_csv(df_accepted, out_path_accepted, mode="w")
-        to_csv(df_rejected, out_path_rejected, mode="w")
-
-    return df_accepted, df_rejected
+    return xmatch_util.find_and_save_best_xmatch_meta(
+        df_asas_sn,
+        out_path_accepted,
+        out_path_rejected,
+        _calc_matches_for_all,
+        dry_run=dry_run,
+        dry_run_size=dry_run_size,
+        min_score_to_include=min_score_to_include,
+    )
 
 
 def load_asas_sn_meta_table_from_file(csv_path="../data/asas_sn_meta.csv"):

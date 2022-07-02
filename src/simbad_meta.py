@@ -20,6 +20,8 @@ from ratelimit import limits, sleep_and_retry
 
 from common import bulk_process, fetch_json, has_value, insert, to_csv, load_tic_ids_from_file, AbstractTypeMapAccessor
 import tic_meta
+import xmatch_util
+
 
 # throttle HTTP calls to MAST
 # somewhat large result set (~1000 rows), so I set a conservative throttle to be extra safe
@@ -217,6 +219,7 @@ def _3val_flag_to_str(val):
         return "F"
 
 
+# TODO: refactor
 class MatchResult(SimpleNamespace):
     def __init__(
         self, mag, mag_band, mag_diff, pm, pmra_diff_pct, pmdec_diff_pct, plx, plx_diff_pct, aliases, num_aliases_matched
@@ -247,6 +250,7 @@ class MatchResult(SimpleNamespace):
         return np.sum(scores)
 
 
+# TODO: refactor
 def _calc_matches(simbad_meta_row, tic_meta_row):
 
     max_mag_diff = 1.0
@@ -411,22 +415,28 @@ def _calc_matches_for_all(df, df_tics, match_method_label, min_score_to_include=
     return df
 
 
-def find_and_save_simbad_best_xmatch_meta(min_score_to_include=None):
-    out_path = "cache/simbad_meta_by_xmatch.csv"
+def find_and_save_simbad_best_xmatch_meta(dry_run=False, dry_run_size=1000, min_score_to_include=None):
+    out_path_accepted = "cache/simbad_meta_by_xmatch.csv"
+    out_path_rejected = "cache/simbad_meta_by_xmatch_rejected.csv"  # those with low match score
 
     df = load_simbad_meta_table_from_file("cache/simbad_meta_candidates_by_xmatch.csv")
     # filter out non-stellar candidates, they are not relevant for TIC matches
     df = df[df["OTYPES"].str.contains("[*]", na=False)].reset_index(drop=True)
 
-    df_tics = tic_meta.load_tic_meta_table_from_file()
+    def _calc_matches_for_all_for_xmatch(df, df_tics):
+        return _calc_matches_for_all(
+            df, df_tics, match_method_label="co", min_score_to_include=None  # shorthand for coordinate
+        )
 
-    df = _calc_matches_for_all(
-        df, df_tics, match_method_label="co", min_score_to_include=min_score_to_include  # shorthand for co-ordinate
+    return xmatch_util.find_and_save_best_xmatch_meta(
+        df,
+        out_path_accepted,
+        out_path_rejected,
+        _calc_matches_for_all_for_xmatch,
+        dry_run=dry_run,
+        dry_run_size=dry_run_size,
+        min_score_to_include=min_score_to_include,
     )
-
-    to_csv(df, out_path, mode="w")
-
-    return df
 
 
 def combine_and_save_simbad_meta_by_tics_and_xmatch(min_score_to_include=0):
@@ -574,7 +584,7 @@ if __name__ == "__main__":
     # get_and_save_simbad_meta_of_all_by_xmatch(max_results_per_target=5)
     # 2c. for each applicable TIC, select the best candidate among the results
     #    from crossmatch
-    # find_and_save_simbad_best_xmatch_meta()
+    find_and_save_simbad_best_xmatch_meta()
 
     # 3. Combine those from TIC id lookups and those from coordinate crossmatch
     #    - filter out those with low match scores

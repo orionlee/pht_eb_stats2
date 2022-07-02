@@ -17,6 +17,7 @@ from astropy.table import Table
 
 from common import insert, move, to_csv, AbstractTypeMapAccessor
 import tic_meta
+import xmatch_util
 
 
 def _xmatch_vsx_meta_of_tics(df_tics_ra_dec, max_distance=120 * u.arcsec):
@@ -48,7 +49,7 @@ def xmatch_and_save_vsx_meta_of_all_by_tics(dry_run=False, dry_run_size=1000):
     return res
 
 
-def _load_vsx_match_table_from_file(csv_path="cache/vsx_tics_xmatch.csv"):
+def _load_vsx_xmatch_table_from_file(csv_path="cache/vsx_tics_xmatch.csv"):
     df = pd.read_csv(
         csv_path,
         keep_default_na=True,
@@ -59,43 +60,6 @@ def _load_vsx_match_table_from_file(csv_path="cache/vsx_tics_xmatch.csv"):
         # cf. https://stackoverflow.com/a/70172587
         converters={"n_min": str, "n_max": str},
     )
-    return df
-
-
-def _do_calc_matches_with_tics(df: pd.DataFrame, df_tics: pd.DataFrame, match_result_columns: dict, match_func: Callable):
-    """For each row in `df`, find the best match in TIC meta data `df_tics` using the given `match_func`.
-
-    `df` is typically raw crossmatch by co-ordinate data of TICs against some catalog.
-    `match_func`: for each pair, calculates the `Match_Score` and stores it in `match_result_columns`, and optionally any
-    additional data
-
-    Return: `df` with `match_result_columns` added to it.
-    """
-    # TODO: move to common.py once it's stable
-
-    # optimization: make lookup by tic_id fast
-    df_tics = df_tics.set_index("ID", drop=False)  # we still want df_tics["ID"] work after using it as an index
-
-    df = df.reset_index(drop=True)  # ensure a 0-based index is used in iteration
-    for i, row_s in df.iterrows():
-        tic_id = row_s["TIC_ID"]
-        # Note: a KeyError would be raised if tic_id is unexpected not found in df_tics
-        # in practice it shouldn't happen to our dataset
-        row_t = df_tics.loc[tic_id]
-        match_func(row_s, row_t, i, match_result_columns)
-
-    for colname in match_result_columns.keys():
-        df[colname] = match_result_columns[colname]
-
-    if "angDist" in df.columns:
-        sort_colnames, ascending = ["TIC_ID", "Match_Score", "angDist"], [True, False, True]
-    else:
-        sort_colnames, ascending = ["TIC_ID", "Match_Score"], [True, False]
-    df.sort_values(sort_colnames, ascending=ascending, inplace=True, ignore_index=True)
-
-    # For each TIC, select the one with the best score (it's sorted above)
-    df = df.groupby("TIC_ID").head(1).reset_index(drop=True)
-
     return df
 
 
@@ -146,7 +110,7 @@ def _calc_matches_for_all(df: pd.DataFrame, df_tics: pd.DataFrame):
         cols["Match_Mag_Band"][i] = band_tic
         cols["Match_Mag_Diff"][i] = mag_diff
 
-    df = _do_calc_matches_with_tics(df, df_tics, match_result_columns, match_func)
+    df = xmatch_util.do_calc_matches_with_tics(df, df_tics, match_result_columns, match_func)
 
     # Format the result table
     df.drop(["_RAJ2000", "_DEJ2000"], axis=1, inplace=True)  # redundant columns
@@ -161,30 +125,22 @@ def _calc_matches_for_all(df: pd.DataFrame, df_tics: pd.DataFrame):
 def find_and_save_vsx_best_xmatch_meta(dry_run=False, dry_run_size=1000, min_score_to_include=0):
     out_path_accepted = "../data/vsx_meta.csv"
     out_path_rejected = "../data/vsx_meta_rejected.csv"  # those with low match score
-
-    df_vsx = _load_vsx_match_table_from_file()
-    df_tics = tic_meta.load_tic_meta_table_from_file()
-
-    if dry_run and dry_run_size is not None:
-        # the running time is drive by the vsx table, so we limit it
-        df_vsx = df_vsx[:dry_run_size]
-
-    df = _calc_matches_for_all(df_vsx, df_tics)
-
-    df_accepted = df[df["Match_Score"] >= min_score_to_include].reset_index(drop=True)
-    df_rejected = df[df["Match_Score"] < min_score_to_include].reset_index(drop=True)
-
-    if not dry_run:
-        to_csv(df_accepted, out_path_accepted, mode="w")
-        to_csv(df_rejected, out_path_rejected, mode="w")
-
-    return df_accepted, df_rejected
+    df_vsx = _load_vsx_xmatch_table_from_file()
+    return xmatch_util.find_and_save_best_xmatch_meta(
+        df_vsx,
+        out_path_accepted,
+        out_path_rejected,
+        _calc_matches_for_all,
+        dry_run=dry_run,
+        dry_run_size=dry_run_size,
+        min_score_to_include=min_score_to_include,
+    )
 
 
 def load_vsx_meta_table_from_file(csv_path="../data/vsx_meta.csv"):
     # the final VSX meta table is so similar to the interim crossmatch table
     # that the logic can be reused
-    return _load_vsx_match_table_from_file(csv_path)
+    return _load_vsx_xmatch_table_from_file(csv_path)
 
 
 def _load_vsx_passband_map_from_file(

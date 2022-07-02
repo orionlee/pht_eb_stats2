@@ -167,3 +167,24 @@ def _3val_flag_to_str(val):
         return "T"
     else:
         return "F"
+
+
+def find_and_save_best_xmatch_meta(
+    df_xmatch, out_path_accepted, out_path_rejected, match_func, dry_run, dry_run_size, min_score_to_include
+):
+    df_tics = tic_meta.load_tic_meta_table_from_file()
+
+    if dry_run and dry_run_size is not None:
+        # the running time is drive by the xmatch table, so we limit it when asked
+        df_xmatch = df_xmatch[:dry_run_size]
+
+    df = match_func(df_xmatch, df_tics)
+
+    df_accepted = df[df["Match_Score"] >= min_score_to_include].reset_index(drop=True)
+    df_rejected = df[df["Match_Score"] < min_score_to_include].reset_index(drop=True)
+
+    if not dry_run:
+        to_csv(df_accepted, out_path_accepted, mode="w")
+        to_csv(df_rejected, out_path_rejected, mode="w")
+
+    return df_accepted, df_rejected
