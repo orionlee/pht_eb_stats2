@@ -180,8 +180,12 @@ def find_and_save_best_xmatch_meta(
 
     df = match_func(df_xmatch, df_tics)
 
-    df_accepted = df[df["Match_Score"] >= min_score_to_include].reset_index(drop=True)
-    df_rejected = df[df["Match_Score"] < min_score_to_include].reset_index(drop=True)
+    if min_score_to_include is not None:
+        df_accepted = df[df["Match_Score"] >= min_score_to_include].reset_index(drop=True)
+        df_rejected = df[df["Match_Score"] < min_score_to_include].reset_index(drop=True)
+    else:
+        df_accepted = df
+        df_rejected = df[np.full(len(df), False)]
 
     if not dry_run:
         to_csv(df_accepted, out_path_accepted, mode="w")

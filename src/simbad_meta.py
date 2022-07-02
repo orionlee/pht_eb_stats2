@@ -1,6 +1,5 @@
 import contextlib
 import json
-from types import SimpleNamespace
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -210,17 +209,7 @@ def get_and_save_simbad_meta_of_all_by_xmatch(max_results_per_target=5):
     return
 
 
-def _3val_flag_to_str(val):
-    if val is None:
-        return "-"
-    elif val:
-        return "T"
-    else:
-        return "F"
-
-
-# TODO: refactor
-class MatchResult(SimpleNamespace):
+class MatchResult(xmatch_util.AbstractMatchResult):
     def __init__(
         self, mag, mag_band, mag_diff, pm, pmra_diff_pct, pmdec_diff_pct, plx, plx_diff_pct, aliases, num_aliases_matched
     ):
@@ -235,44 +224,19 @@ class MatchResult(SimpleNamespace):
         self.aliases = aliases
         self.num_aliases_matched = num_aliases_matched
 
-    def _flag_to_score(self, val):
-        if val is None:
-            return 0
-        elif val:
-            return 1
-        else:
-            return -1
+    def get_flags(self):
+        return [self.mag, self.pm, self.plx, self.aliases]
 
-    def score(self):
-        flags = [self.mag, self.pm, self.plx, self.aliases]
-        weight = [2, 1, 1, 1]
-        scores = [self._flag_to_score(f) * w for f, w in zip(flags, weight)]
-        return np.sum(scores)
+    def get_weights(self):
+        return [2, 1, 1, 1]
 
 
-# TODO: refactor
 def _calc_matches(simbad_meta_row, tic_meta_row):
 
     max_mag_diff = 1.0
     max_pmra_diff_pct = 25
     max_pmdec_diff_pct = 25
     max_plx_diff_pct = 25
-
-    def _diff(val1, val2, in_percent=False, label=""):
-        if has_value(val1) and has_value(val2):
-            diff = np.abs(val1 - val2)
-            if not in_percent:
-                return diff
-            else:
-                if val1 == 0:
-                    print(
-                        f"WARN in calculating the difference percentage of {label} , division by zero happens. returning nan"
-                    )
-                    return np.nan
-                else:
-                    return 100.0 * diff / np.abs(val1)
-        else:
-            return None
 
     tic_label = f"TIC {tic_meta_row['ID']}"
 
@@ -282,32 +246,27 @@ def _calc_matches(simbad_meta_row, tic_meta_row):
     mag_match_band = None
     mag_diff = None
     for bt, bs in zip(bands_t, bands_s):
-        mag_diff = _diff(tic_meta_row[bt], simbad_meta_row[bs], label=f"{tic_label} magnitude ({bt} {bs})")
+        mag_diff = xmatch_util._diff(tic_meta_row[bt], simbad_meta_row[bs], label=f"{tic_label} magnitude ({bt} {bs})")
         if mag_diff is not None:
             mag_match_band = bt
             mag_match = mag_diff < max_mag_diff
             break
         #  else no data in TIC and/or SIMBAD, try the next band
 
-    pmra_diff_pct = _diff(tic_meta_row["pmRA"], simbad_meta_row["PMRA"], in_percent=True, label=f"{tic_label} pmRA")
-    pmdec_diff_pct = _diff(tic_meta_row["pmDEC"], simbad_meta_row["PMDEC"], in_percent=True, label=f"{tic_label} pmDEC")
+    pm_match, pmra_diff_pct, pmdec_diff_pct = xmatch_util.calc_pm_matches(
+        tic_meta_row,
+        simbad_meta_row["PMRA"],
+        simbad_meta_row["PMDEC"],
+        max_pmra_diff_pct=max_pmra_diff_pct,
+        max_pmdec_diff_pct=max_pmdec_diff_pct,
+    )
 
-    pm_match = None
-    if pmra_diff_pct is not None and pmdec_diff_pct is not None:
-        if pmra_diff_pct < max_pmra_diff_pct and pmdec_diff_pct < max_pmdec_diff_pct:
-            pm_match = True
-        else:
-            pm_match = False
-
-    plx_diff_pct = _diff(tic_meta_row["plx"], simbad_meta_row["PLX_VALUE"], in_percent=True, label=f"{tic_label} plx")
-
-    plx_match = None
-    if plx_diff_pct is not None:
-        plx_match = plx_diff_pct < max_plx_diff_pct
+    plx_match, plx_diff_pct = xmatch_util.calc_scalar_matches(
+        tic_meta_row, "plx", simbad_meta_row["PLX_VALUE"], max_diff_pct=max_plx_diff_pct
+    )
 
     simbad_aliases = get_aliases(simbad_meta_row)
     tic_aliases = tic_meta.get_aliases(tic_meta_row)
-
     num_aliases_matched = len([1 for a in tic_aliases if a in simbad_aliases])
     aliases_match = num_aliases_matched > 0
 
@@ -325,94 +284,46 @@ def _calc_matches(simbad_meta_row, tic_meta_row):
     )
 
 
-def _calc_matches_for_all(df, df_tics, match_method_label, min_score_to_include=None):
+def _calc_matches_for_all(df, df_tics, match_method_label):
     # we basically filter the candidates list, `df`
     # by comparing the metadata against those from TIC Catalog, `df_tics`
     # all of the smart logic is encapsulated here
 
     df_len = len(df)
-    col_Match_Score = np.zeros(df_len, dtype=int)
-    col_Match_Mag = np.full(df_len, "", dtype="O")
-    col_Match_PM = np.full(df_len, "", dtype="O")
-    col_Match_Plx = np.full(df_len, "", dtype="O")
-    col_Match_Aliases = np.full(df_len, "", dtype="O")
-    col_Match_Mag_Band = np.full(df_len, "", dtype="O")
-    col_Match_Mag_Diff = np.zeros(df_len, dtype=float)
-    col_Match_PMRA_DiffPct = np.zeros(df_len, dtype=float)
-    col_Match_PMDEC_DiffPct = np.zeros(df_len, dtype=float)
-    col_Match_Plx_DiffPct = np.zeros(df_len, dtype=float)
-    col_Match_Aliases_NumMatch = np.zeros(df_len, dtype=int)
+    match_result_columns = {
+        "Match_Method": np.full(df_len, match_method_label),
+        "Match_Score": np.zeros(df_len, dtype=int),
+        "Match_Mag": np.full(df_len, "", dtype="O"),
+        "Match_PM": np.full(df_len, "", dtype="O"),
+        "Match_Plx": np.full(df_len, "", dtype="O"),
+        "Match_Aliases": np.full(df_len, "", dtype="O"),
+        "Match_Mag_Band": np.full(df_len, "", dtype="O"),
+        "Match_Mag_Diff": np.zeros(df_len, dtype=float),
+        "Match_PMRA_DiffPct": np.zeros(df_len, dtype=float),
+        "Match_PMDEC_DiffPct": np.zeros(df_len, dtype=float),
+        "Match_Plx_DiffPct": np.zeros(df_len, dtype=float),
+        "Match_Aliases_NumMatch": np.zeros(df_len, dtype=int),
+    }
 
-    # for each candidate in df, compute how it matches with the expected TIC
-    # Technical note: update via .iterrows() is among the slowest methods
-    # but given our match semantics is not trivial, I settle for using it.
-    #
-    # I also consider defer the DataFrame update after the iteration in a batch
-    # (and hold the result in ndarray in the loop)
-    # Empirical test shows that the iteration alone (along with fetch the match row in df_tics)
-    # account for 50+% of the running time. So I decide not to pursue any more optimization for now.
-    #
-    # optimization: make lookup a row in df_tics by tic_id fast by using it as an index
-    # it saves ~30+% of the running time for a ~10,000 rows dataset
-    df_tics = df_tics.set_index("ID", drop=False)  # we still want df_tics["ID"] work after using it as an index
-    i_s = 0
-    for _, row_s in df.iterrows():
-        # note: the index returned by df.iterrows() somehow is mostly the expected 0-based index,
-        # but the last row is off by 1, so I keep track of 0-based index myself.
-        # Plus in general, the index of a dataframe can be arbitrary so I shouldn't really rely on it.
-        tic_id = row_s["TIC_ID"]
-        # Note: a KeyError would be raised if tic_id is unexpected not found in df_tics
-        # in practice it shouldn't happen to our dataset.
-        row_t = df_tics.loc[tic_id]
-        match_result = _calc_matches(row_s, row_t)
-        # print(f"DBG {tic_id} {match_result}")
-        col_Match_Score[i_s] = match_result.score()
-        col_Match_Mag[i_s] = _3val_flag_to_str(match_result.mag)
-        col_Match_Mag_Band[i_s] = match_result.mag_band
-        col_Match_Mag_Diff[i_s] = match_result.mag_diff
+    def match_func(row_xmatch, row_tics, i, match_result_columns):
+        match_result = _calc_matches(row_xmatch, row_tics)
+        cols = match_result_columns  # to abbreviate it
+        cols["Match_Score"][i] = match_result.score()
+        cols["Match_Mag"][i] = match_result.to_flag_str("mag")
+        cols["Match_Mag_Band"][i] = match_result.mag_band
+        cols["Match_Mag_Diff"][i] = match_result.mag_diff
 
-        col_Match_PM[i_s] = _3val_flag_to_str(match_result.pm)
-        col_Match_PMRA_DiffPct[i_s] = match_result.pmra_diff_pct
-        col_Match_PMDEC_DiffPct[i_s] = match_result.pmdec_diff_pct
+        cols["Match_PM"][i] = match_result.to_flag_str("pm")
+        cols["Match_PMRA_DiffPct"][i] = match_result.pmra_diff_pct
+        cols["Match_PMDEC_DiffPct"][i] = match_result.pmdec_diff_pct
 
-        col_Match_Plx[i_s] = _3val_flag_to_str(match_result.plx)
-        col_Match_Plx_DiffPct[i_s] = match_result.plx_diff_pct
+        cols["Match_Plx"][i] = match_result.to_flag_str("plx")
+        cols["Match_Plx_DiffPct"][i] = match_result.plx_diff_pct
 
-        col_Match_Aliases[i_s] = _3val_flag_to_str(match_result.aliases)
-        col_Match_Aliases_NumMatch[i_s] = match_result.num_aliases_matched
+        cols["Match_Aliases"][i] = match_result.to_flag_str("aliases")
+        cols["Match_Aliases_NumMatch"][i] = match_result.num_aliases_matched
 
-        i_s += 1
-
-    # optimization: batch update the dataframe after the loop, rather than cell by cell
-    # save 20+% of time for ~10,000 rows dataset
-    df["Match_Method"] = match_method_label
-    df["Match_Score"] = col_Match_Score
-    df["Match_Mag"] = col_Match_Mag
-    df["Match_PM"] = col_Match_PM
-    df["Match_Plx"] = col_Match_Plx
-    df["Match_Aliases"] = col_Match_Aliases
-    df["Match_Mag_Band"] = col_Match_Mag_Band
-    df["Match_Mag_Diff"] = col_Match_Mag_Diff
-    df["Match_PMRA_DiffPct"] = col_Match_PMRA_DiffPct
-    df["Match_PMDEC_DiffPct"] = col_Match_PMDEC_DiffPct
-    df["Match_Plx_DiffPct"] = col_Match_Plx_DiffPct
-    df["Match_Aliases_NumMatch"] = col_Match_Aliases_NumMatch
-
-    # Exclude those with low match scores, default to exclude negative scores
-    if min_score_to_include is not None:
-        df = df[df["Match_Score"] >= min_score_to_include].reset_index(drop=True)
-
-    if "angDist" in df.columns:
-        sort_colnames, ascending = ["TIC_ID", "Match_Score", "angDist"], [True, False, True]
-    else:
-        sort_colnames, ascending = ["TIC_ID", "Match_Score"], [True, False]
-
-    df.sort_values(sort_colnames, ascending=ascending, inplace=True, ignore_index=True)
-
-    # For each TIC, select the one with the best score (it's sorted above)
-    df = df.groupby("TIC_ID").head(1).reset_index(drop=True)
-
-    return df
+    return xmatch_util.do_calc_matches_with_tics(df, df_tics, match_result_columns, match_func)
 
 
 def find_and_save_simbad_best_xmatch_meta(dry_run=False, dry_run_size=1000, min_score_to_include=None):
@@ -424,9 +335,7 @@ def find_and_save_simbad_best_xmatch_meta(dry_run=False, dry_run_size=1000, min_
     df = df[df["OTYPES"].str.contains("[*]", na=False)].reset_index(drop=True)
 
     def _calc_matches_for_all_for_xmatch(df, df_tics):
-        return _calc_matches_for_all(
-            df, df_tics, match_method_label="co", min_score_to_include=None  # shorthand for coordinate
-        )
+        return _calc_matches_for_all(df, df_tics, match_method_label="co")  # shorthand for coordinate
 
     return xmatch_util.find_and_save_best_xmatch_meta(
         df,
@@ -456,7 +365,7 @@ def combine_and_save_simbad_meta_by_tics_and_xmatch(min_score_to_include=0):
 
     # 2. we add match scores (and angDist column) to make its schema the same as those from xmatch
     df_by_ticid["angDist"] = np.nan
-    df_by_ticid = _calc_matches_for_all(df_by_ticid, df_tic_meta, match_method_label="tic", min_score_to_include=None)
+    df_by_ticid = _calc_matches_for_all(df_by_ticid, df_tic_meta, match_method_label="tic")
 
     df = pd.concat([df_by_ticid, df_by_xmatch])
     df = df.sort_values("TIC_ID", ascending=True)
@@ -574,6 +483,10 @@ class SIMBADOTypesAccessor:
 
 
 if __name__ == "__main__":
+    # For now, the calls that would actually query SIMBAD / Vizier are commented out.
+    # The typical workflow is to tweak the mapping logic on the downloaded data.
+    # No need to reissue queries in such cases.
+
     # 1. process those that can be found by TIC id lookups
     # get_and_save_simbad_meta_of_all_by_tics()
 
@@ -588,12 +501,12 @@ if __name__ == "__main__":
 
     # 3. Combine those from TIC id lookups and those from coordinate crossmatch
     #    - filter out those with low match scores
-    # combine_and_save_simbad_meta_by_tics_and_xmatch(min_score_to_include=0)
+    combine_and_save_simbad_meta_by_tics_and_xmatch(min_score_to_include=0)
 
     # for each SIMBAD record, map it OTYPES to Is_EB
     # it depends on the mapping defined in `data/simbad_typemap.csv`
-    # simbad_is_eb_df, not_mapped_types_seen = map_and_save_simbad_otypes_of_all()
-    # if len(not_mapped_types_seen) > 0:
-    #     print(f"WARN: there are {len(not_mapped_types_seen)} number of OTYPE value not mapped.")
-    #     print(not_mapped_types_seen)
+    simbad_is_eb_df, not_mapped_types_seen = map_and_save_simbad_otypes_of_all()
+    if len(not_mapped_types_seen) > 0:
+        print(f"WARN: there are {len(not_mapped_types_seen)} number of OTYPE value not mapped.")
+        print(not_mapped_types_seen)
     pass
