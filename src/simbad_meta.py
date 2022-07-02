@@ -246,7 +246,7 @@ def _calc_matches(simbad_meta_row, tic_meta_row):
     mag_match_band = None
     mag_diff = None
     for bt, bs in zip(bands_t, bands_s):
-        mag_diff = xmatch_util._diff(tic_meta_row[bt], simbad_meta_row[bs], label=f"{tic_label} magnitude ({bt} {bs})")
+        mag_diff = xmatch_util.diff_between(tic_meta_row[bt], simbad_meta_row[bs], label=f"{tic_label} magnitude ({bt} {bs})")
         if mag_diff is not None:
             mag_match_band = bt
             mag_match = mag_diff < max_mag_diff

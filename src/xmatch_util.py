@@ -120,7 +120,10 @@ class AbstractMatchResult(SimpleNamespace, ABC):
         return np.sum(scores)
 
 
-def _diff(val1, val2, in_percent=False, label=""):
+def diff_between(val1, val2, in_percent=False, label=""):
+    """Calculate the difference of the given 2 numerical values.
+    Report as percentage if requested.
+    """
     if has_value(val1) and has_value(val2):
         diff = np.abs(val1 - val2)
         if not in_percent:
@@ -137,8 +140,8 @@ def _diff(val1, val2, in_percent=False, label=""):
 
 def calc_pm_matches(tic_meta_row, xmatch_pmra, xmatch_pmdec, max_pmra_diff_pct=25, max_pmdec_diff_pct=25):
     tic_label = f"TIC {tic_meta_row['ID']}"
-    pmra_diff_pct = _diff(tic_meta_row["pmRA"], xmatch_pmra, in_percent=True, label=f"{tic_label} pmRA")
-    pmdec_diff_pct = _diff(tic_meta_row["pmDEC"], xmatch_pmdec, in_percent=True, label=f"{tic_label} pmDEC")
+    pmra_diff_pct = diff_between(tic_meta_row["pmRA"], xmatch_pmra, in_percent=True, label=f"{tic_label} pmRA")
+    pmdec_diff_pct = diff_between(tic_meta_row["pmDEC"], xmatch_pmdec, in_percent=True, label=f"{tic_label} pmDEC")
 
     pm_match = None
     if pmra_diff_pct is not None and pmdec_diff_pct is not None:
@@ -151,7 +154,7 @@ def calc_pm_matches(tic_meta_row, xmatch_pmra, xmatch_pmdec, max_pmra_diff_pct=2
 
 def calc_scalar_matches(tic_meta_row, tic_scalar_colname, xmatch_scalar_val, max_diff_pct):
     tic_label = f"TIC {tic_meta_row['ID']}"
-    val_diff_pct = _diff(
+    val_diff_pct = diff_between(
         tic_meta_row[tic_scalar_colname], xmatch_scalar_val, in_percent=True, label=f"{tic_label} {tic_scalar_colname}"
     )
     val_match = None
