@@ -42,6 +42,27 @@ def _load_asas_sn_xmatch_table_from_file(csv_path="cache/asas_sn_tics_xmatch.csv
     return df
 
 
+class MatchResult(xmatch_util.AbstractMatchResult):
+    def __init__(self, mag, mag_band, mag_diff, pm, pmra_diff_pct, pmdec_diff_pct):
+        self.mag = mag
+        self.mag_band = mag_band
+        self.mag_diff = mag_diff
+        self.pm = pm
+        self.pmra_diff_pct = pmra_diff_pct
+        self.pmdec_diff_pct = pmdec_diff_pct
+
+    def get_flags(self):
+        return [self.mag, self.pm]
+
+    def get_weights(self):
+        if self.mag_diff > 2:
+            # if mag_diff is too big, we give it more weight
+            # so as to bring the match score down
+            return [2, 1]
+        else:
+            return [1, 1]
+
+
 def _calc_matches(row_asas_sn, row_tic, tic_band_preference_map):
     max_mag_diff = 1.0
 
@@ -64,27 +85,37 @@ def _calc_matches(row_asas_sn, row_tic, tic_band_preference_map):
             break
 
     mag_diff = np.abs(mag_asas_sn - mag_tic)
-    match_score = 1 if mag_diff <= max_mag_diff else -1
+    mag_match = True if mag_diff <= max_mag_diff else False
 
-    return match_score, mag_diff, band_tic
+    pm_match, pmra_diff_pct, pmdec_diff_pct = xmatch_util.calc_pm_matches(row_tic, row_asas_sn["pmRA"], row_asas_sn["pmDE"])
+
+    return MatchResult(mag_match, band_tic, mag_diff, pm_match, pmra_diff_pct, pmdec_diff_pct)
 
 
 def _calc_matches_for_all(df: pd.DataFrame, df_tics: pd.DataFrame):
     df_len = len(df)
     match_result_columns = {
         "Match_Score": np.zeros(df_len, dtype=int),
+        "Match_Mag": np.full(df_len, "-"),
+        "Match_PM": np.full(df_len, "-"),
         "Match_Mag_Band": np.full(df_len, "", dtype="O"),
         "Match_Mag_Diff": np.zeros(df_len, dtype=float),
+        "Match_PMRA_DiffPct": np.zeros(df_len, dtype=float),
+        "Match_PMDEC_DiffPct": np.zeros(df_len, dtype=float),
     }
 
     tic_band_preference_map = vsx_meta._create_tic_passband_preference_table()
 
     def match_func(row_xmatch, row_tics, i, match_result_columns):
-        match_score, mag_diff, band_tic = _calc_matches(row_xmatch, row_tics, tic_band_preference_map)
+        match_result = _calc_matches(row_xmatch, row_tics, tic_band_preference_map)
         cols = match_result_columns  # to abbreviate it
-        cols["Match_Score"][i] = match_score
-        cols["Match_Mag_Band"][i] = band_tic
-        cols["Match_Mag_Diff"][i] = mag_diff
+        cols["Match_Score"][i] = match_result.score()
+        cols["Match_Mag"][i] = match_result.to_flag_str("mag")
+        cols["Match_PM"][i] = match_result.to_flag_str("pm")
+        cols["Match_Mag_Band"][i] = match_result.mag_band
+        cols["Match_Mag_Diff"][i] = match_result.mag_diff
+        cols["Match_PMRA_DiffPct"][i] = match_result.pmra_diff_pct
+        cols["Match_PMDEC_DiffPct"][i] = match_result.pmdec_diff_pct
 
     df = xmatch_util.do_calc_matches_with_tics(df, df_tics, match_result_columns, match_func)
 
