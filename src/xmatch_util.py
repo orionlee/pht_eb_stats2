@@ -149,6 +149,17 @@ def calc_pm_matches(tic_meta_row, xmatch_pmra, xmatch_pmdec, max_pmra_diff_pct=2
     return pm_match, pmra_diff_pct, pmdec_diff_pct
 
 
+def calc_scalar_matches(tic_meta_row, tic_scalar_colname, xmatch_scalar_val, max_diff_pct):
+    tic_label = f"TIC {tic_meta_row['ID']}"
+    val_diff_pct = _diff(
+        tic_meta_row[tic_scalar_colname], xmatch_scalar_val, in_percent=True, label=f"{tic_label} {tic_scalar_colname}"
+    )
+    val_match = None
+    if val_diff_pct is not None:
+        val_match = val_diff_pct < max_diff_pct
+    return val_match, val_diff_pct
+
+
 def _3val_flag_to_str(val):
     if val is None:
         return "-"

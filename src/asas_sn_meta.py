@@ -43,28 +43,40 @@ def _load_asas_sn_xmatch_table_from_file(csv_path="cache/asas_sn_tics_xmatch.csv
 
 
 class MatchResult(xmatch_util.AbstractMatchResult):
-    def __init__(self, mag, mag_band, mag_diff, pm, pmra_diff_pct, pmdec_diff_pct):
+    def __init__(self, mag, mag_band, mag_diff, pm, pmra_diff_pct, pmdec_diff_pct, dist, dist_diff_pct):
         self.mag = mag
         self.mag_band = mag_band
         self.mag_diff = mag_diff
         self.pm = pm
         self.pmra_diff_pct = pmra_diff_pct
         self.pmdec_diff_pct = pmdec_diff_pct
+        self.dist = dist
+        self.dist_diff_pct = dist_diff_pct
 
     def get_flags(self):
-        return [self.mag, self.pm]
+        return [self.mag, self.pm, self.dist]
 
     def get_weights(self):
-        if self.mag_diff > 2:
-            # if mag_diff is too big, we give it more weight
-            # so as to bring the match score down
-            return [2, 1]
+        # Tweak the weight based on anecdotal observation that
+        # the PM / Distance in ASAS-SN / Vizier seem to be more error prone
+        # (the live version on https://asas-sn.osu.edu/variables/ is noticeably better)
+        # Intent:
+        # - if magnitude matches, we pretty much ignore PM / Distance
+        # - if magnitude does not mach but the diff is big (> 2),
+        #   we make it override PM / Distance match
+        # - if magnitude does not mach but the diff is small (< 2),
+        #   we let PM and Distance override it if both PM and distance match
+        if self.mag:
+            return [2, 1, 1]
+        elif not self.mag and self.mag_diff > 2:
+            return [2, 1, 1]
         else:
-            return [1, 1]
+            return [1, 1, 1]
 
 
 def _calc_matches(row_asas_sn, row_tic, tic_band_preference_map):
     max_mag_diff = 1.0
+    max_dist_diff_pct = 25
 
     # ASAS-SN records always have Vmag in practice.
     # So we use it for magnitude matching
@@ -89,7 +101,11 @@ def _calc_matches(row_asas_sn, row_tic, tic_band_preference_map):
 
     pm_match, pmra_diff_pct, pmdec_diff_pct = xmatch_util.calc_pm_matches(row_tic, row_asas_sn["pmRA"], row_asas_sn["pmDE"])
 
-    return MatchResult(mag_match, band_tic, mag_diff, pm_match, pmra_diff_pct, pmdec_diff_pct)
+    dist_match, dist_diff_pct = xmatch_util.calc_scalar_matches(
+        row_tic, "d", row_asas_sn["Dist"], max_diff_pct=max_dist_diff_pct
+    )
+
+    return MatchResult(mag_match, band_tic, mag_diff, pm_match, pmra_diff_pct, pmdec_diff_pct, dist_match, dist_diff_pct)
 
 
 def _calc_matches_for_all(df: pd.DataFrame, df_tics: pd.DataFrame):
@@ -98,10 +114,12 @@ def _calc_matches_for_all(df: pd.DataFrame, df_tics: pd.DataFrame):
         "Match_Score": np.zeros(df_len, dtype=int),
         "Match_Mag": np.full(df_len, "-"),
         "Match_PM": np.full(df_len, "-"),
+        "Match_Dist": np.full(df_len, "-"),
         "Match_Mag_Band": np.full(df_len, "", dtype="O"),
-        "Match_Mag_Diff": np.zeros(df_len, dtype=float),
+        "Match_Mag_Diff": np.full(df_len, np.nan, dtype=float),
         "Match_PMRA_DiffPct": np.zeros(df_len, dtype=float),
-        "Match_PMDEC_DiffPct": np.zeros(df_len, dtype=float),
+        "Match_PMDEC_DiffPct": np.full(df_len, np.nan, dtype=float),
+        "Match_Dist_DiffPct": np.full(df_len, np.nan, dtype=float),
     }
 
     tic_band_preference_map = vsx_meta._create_tic_passband_preference_table()
@@ -112,10 +130,12 @@ def _calc_matches_for_all(df: pd.DataFrame, df_tics: pd.DataFrame):
         cols["Match_Score"][i] = match_result.score()
         cols["Match_Mag"][i] = match_result.to_flag_str("mag")
         cols["Match_PM"][i] = match_result.to_flag_str("pm")
+        cols["Match_Dist"][i] = match_result.to_flag_str("dist")
         cols["Match_Mag_Band"][i] = match_result.mag_band
         cols["Match_Mag_Diff"][i] = match_result.mag_diff
         cols["Match_PMRA_DiffPct"][i] = match_result.pmra_diff_pct
         cols["Match_PMDEC_DiffPct"][i] = match_result.pmdec_diff_pct
+        cols["Match_Dist_DiffPct"][i] = match_result.dist_diff_pct
 
     df = xmatch_util.do_calc_matches_with_tics(df, df_tics, match_result_columns, match_func)
 
