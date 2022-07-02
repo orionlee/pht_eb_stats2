@@ -31,6 +31,10 @@ CAT_COLS_COMMON = [
     "VSX_Type",
     "VSX_Is_EB",
     "VSX_Period",
+    "ASASSN_Name",
+    "ASASSN_URL",
+    "ASASSN_Type",
+    "ASASSN_Per",
 ]
 
 # For TIC Meta
@@ -170,13 +174,16 @@ def plot_tic_on_hr(row_tic):
 
 
 def style(df_catalog, show_thumbnail=False):
-    def make_clickable(val, url_prefix, target, quote_val=False):
+    def make_clickable(val, url_prefix, target, quote_val=False, link_text_func=None):
         if pd.isna(val):
             return val
         val_in_url = val
         if quote_val:
             val_in_url = urllib.parse.quote_plus(str(val))
-        return f'<a target="{target}" href="{url_prefix}{val_in_url}">{val}</a>'
+        link_text = val
+        if link_text_func is not None:
+            link_text = link_text_func(val)
+        return f'<a target="{target}" href="{url_prefix}{val_in_url}">{link_text}</a>'
 
     def make_tic_id_clickable(val):
         return make_clickable(val, "https://exofop.ipac.caltech.edu/tess/target.php?id=", "_exofop")
@@ -191,6 +198,9 @@ def style(df_catalog, show_thumbnail=False):
 
     def make_vsx_id_clickable(val):
         return make_clickable(val, "https://www.aavso.org/vsx/index.php?view=detail.top&oid=", "_vsx")
+
+    def make_asas_sn_url_clickable(val):
+        return make_clickable(val, "", "_asas_sn", link_text_func=lambda val: "details")
 
     def make_subject_img_id_image(val):
         # Note: setting custom dimension is a bit tricky and is abandoned for now.
@@ -211,6 +221,7 @@ def style(df_catalog, show_thumbnail=False):
         "best_subject_id": make_subject_id_clickable,
         "SIMBAD_MAIN_ID": make_simbad_id_clickable,
         "SIMBAD_OTYPES": abbreviate_simbad_otypes,
+        "ASASSN_URL": make_asas_sn_url_clickable,
         "VSX_OID": make_vsx_id_clickable,
     }
 
