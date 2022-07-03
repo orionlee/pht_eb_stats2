@@ -35,6 +35,7 @@ CAT_COLS_COMMON = [
     "ASASSN_URL",
     "ASASSN_Type",
     "ASASSN_Per",
+    "TESSEB",
 ]
 
 # For TIC Meta
@@ -101,7 +102,11 @@ def two_columns(
 
 def get_catalog(type="pht_eb"):
     if type == "pht_eb":
-        return catalog.load_pht_eb_candidate_catalog_from_file()
+        df = catalog.load_pht_eb_candidate_catalog_from_file()
+        # Create a TESSEB column that can be used to include links
+        # to TESSEB entry of a TIC
+        df["TESSEB"] = df["tic_id"]
+        return df
     elif type == "tic_meta":
         return tic_meta.load_tic_meta_table_from_file()
     elif type == "hr":
@@ -216,6 +221,13 @@ def style(df_catalog, show_thumbnail=False):
         # remove generic types, also remove duplicates
         return "|".join(set(val.split("|")) - set(["*", "PM*", "IR"]))
 
+    def make_tesseb_link(val):
+        # TESSEB column is populated with tic id so as to construct the links
+        # as follows
+        return make_clickable(
+            val, "http://tessebs.villanova.edu/search_results?tic=", "_tesseb", link_text_func=lambda val: "details"
+        )
+
     format_spec = {
         "tic_id": make_tic_id_clickable,
         "best_subject_id": make_subject_id_clickable,
@@ -223,6 +235,7 @@ def style(df_catalog, show_thumbnail=False):
         "SIMBAD_OTYPES": abbreviate_simbad_otypes,
         "ASASSN_URL": make_asas_sn_url_clickable,
         "VSX_OID": make_vsx_id_clickable,
+        "TESSEB": make_tesseb_link,
     }
 
     if show_thumbnail:
