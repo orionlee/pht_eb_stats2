@@ -59,7 +59,7 @@ def test_calc_is_eb_combined():
 test_calc_is_eb_combined()
 
 
-def to_score_group(val, max_cap):
+def to_score_group(val, max_cap, min_cap=0):
     """Format an eb_score to a string for grouping.
 
     Values `>= max_cap` and `<= 0` would be grouped together.
@@ -79,8 +79,8 @@ def to_score_group(val, max_cap):
         res = ""
     elif val >= max_cap:
         res = f"0{max_cap}+"
-    elif val <= 0:
-        res = "00-"
+    elif val <= min_cap:
+        res = f"0{min_cap}-"
     else:
         res = f"{val:02d}"
     return res
