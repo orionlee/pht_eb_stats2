@@ -8,6 +8,7 @@ from tqdm import tqdm
 from common import as_nullable_int, insert, to_csv, prefix_columns
 import pht_subj_comments_per_subject
 import tic_pht_stats
+import tic_meta
 import simbad_meta
 import vsx_meta
 import asas_sn_meta
@@ -95,25 +96,36 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000, 
     df_simbad = simbad_meta.load_simbad_is_eb_table_from_file()
     df_vsx = vsx_meta.load_vsx_is_eb_table_from_file()
     df_asas_sn = asas_sn_meta.load_asas_sn_is_eb_table_from_file()
+    df_tic = tic_meta.load_tic_meta_table_from_file()
+    # we incorporate a subset of TIC metadata into the catalog
+    df_tic = df_tic[["ID", "ra", "dec", "pmRA", "pmDEC", "plx", "Tmag", "Teff", "rad", "mass", "lum"]]
 
     if dry_run and dry_run_size is not None:
         df_pht = df_pht[:dry_run_size]
         df_simbad = df_simbad[:dry_run_size]
         df_vsx = df_vsx[:dry_run_size]
         df_asas_sn = df_asas_sn[:dry_run_size]
+        df_tic = df_tic[:dry_run_size]
 
     # column-merge the tables by tic_id
     df_pht.set_index("tic_id", drop=False, inplace=True)
+
     df_simbad.set_index("TIC_ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
     prefix_columns(df_simbad, "SIMBAD", inplace=True)
+
     df_vsx.set_index("TIC_ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
     prefix_columns(df_vsx, "VSX", inplace=True)
+
     df_asas_sn.set_index("TIC_ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
     # Rename the ASASSN-V (primary name used) to Name so that after adding ASASSN prefix,
     # it will be "ASASSN_Name", similar to other catalogs.
     df_asas_sn = df_asas_sn.rename(columns={"ASASSN-V": "Name"})
     prefix_columns(df_asas_sn, "ASASSN", inplace=True)
-    df = pd.concat([df_pht, df_simbad, df_vsx, df_asas_sn], join="outer", axis=1)
+
+    df_tic.set_index("ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
+    prefix_columns(df_tic, "TIC", inplace=True)
+
+    df = pd.concat([df_pht, df_simbad, df_vsx, df_asas_sn, df_tic], join="outer", axis=1)
 
     # Misc. type fixing after concat()
     as_nullable_int(df, ["VSX_OID", "VSX_V"])  # some cells is NA, so convert it to nullable integer
