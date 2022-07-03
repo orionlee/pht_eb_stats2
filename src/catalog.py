@@ -118,6 +118,17 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000, 
     # Misc. type fixing after concat()
     as_nullable_int(df, ["VSX_OID", "VSX_V"])  # some cells is NA, so convert it to nullable integer
 
+    # The period in ASASSN is numbers, except the special case of "NON PERIODIC"
+    # to make the column a float,
+    # - convert the "NON PERIODIC" to 0 to signify it is non periodic
+    # - then convert the whole column to float
+    # - Note: 0 is chosen over nan, as nan would imply cases that there is genuine no data because
+    #   there isn't a matching ASAS-SN entry.
+    # - the conversion is done here so that when someone access the csv file, they do not need to
+    #   handle the "NON PERIODIC" special case
+    df.loc[df["ASASSN_Per"] == "NON PERIODIC", "ASASSN_Per"] = 0
+    df["ASASSN_Per"] = df["ASASSN_Per"].astype(float)
+
     # after the table join, some Is_EB values would be NA,
     # we backfill it with the preferred "-", the preferred value that indicates no data.
     # TODO: we might want to revisit this decision
