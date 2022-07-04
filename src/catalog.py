@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 from common import as_nullable_int, insert, to_csv, prefix_columns
 import pht_subj_comments_per_subject
+import pht_subj_meta
 import tic_pht_stats
 import tic_meta
 import simbad_meta
@@ -171,6 +172,48 @@ def load_pht_eb_candidate_catalog_from_file(csv_path="../data/catalog_pht_eb_can
         # force them to be nullable integer type column, to handle N/A cases
         dtype={"VSX_OID": "Int64", "VSX_V": "Int64"},
     )
+    return df
+
+
+def create_pht_eb_subj_catalog(sector_group_func=None):
+    df_subj = pht_subj_meta.load_subject_meta_table_from_file()
+    df_eb_score = pht_subj_comments_per_subject.load_pht_subj_comment_summary_table_from_file()
+
+    # column-merge the tables by subject_id
+    df_subj.set_index("subject_id", drop=False, inplace=True)
+
+    df_eb_score.set_index(
+        "subject_id", drop=True, inplace=True
+    )  # drop subject_id column, as it will be a duplicate in the result
+
+    # use inner join to filter out simulation (already excluded from `df_subj`)
+    df = pd.concat([df_subj, df_eb_score], join="inner", axis=1)
+
+    # now join subject-level data with TIC-level data to get Is_EB columns
+
+    df_tic = load_pht_eb_candidate_catalog_from_file()
+    df_tic.set_index("tic_id", drop=True, inplace=True)
+    df_tic = df_tic[
+        [
+            "is_eb_catalog",
+            "num_votes_eb",
+            "num_votes_transit",
+            "num_users",
+            "num_comments",
+            "SIMBAD_Is_EB",
+            "VSX_Is_EB",
+            "ASASSN_Is_EB",
+        ]
+    ]
+
+    df.set_index("tic_id", drop=False, inplace=True)
+    df = pd.concat([df, df_tic], join="outer", axis=1)
+    df.reset_index(drop=True, inplace=True)
+
+    if sector_group_func is not None:
+        col_sector_group = [sector_group_func(s) for s in df["sector"]]
+        insert(df, before_colname="sector", colname="sector_group", value=col_sector_group)
+
     return df
 
 
