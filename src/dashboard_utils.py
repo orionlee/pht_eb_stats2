@@ -73,7 +73,6 @@ def two_columns(
     col1_layout={"border": "1px dotted gray"},
     col2_layout={"border": "1px dotted gray"},
     grid_template_columns="50% 50%",
-    grid_template_rows="auto auto",
     width="100%",
 ):
     col1 = ipywidgets.Output(layout=col1_layout)
@@ -82,7 +81,6 @@ def two_columns(
         children=[col1, col2],
         layout=Layout(
             width=width,
-            grid_template_rows=grid_template_rows,
             grid_template_columns=grid_template_columns,
             grid_template_areas="""
             "col1 col2"
@@ -99,6 +97,40 @@ def two_columns(
 
     if also_return_outputs:
         return grid_box, col1, col2
+    else:
+        return grid_box
+
+
+def n_columns(
+    contents,
+    also_return_outputs=False,
+    layout={"border": "1px dotted gray"},
+    grid_template_columns=None,
+    width="100%",
+):
+    num_cols = len(contents)
+    outputs = [ipywidgets.Output(layout=layout) for i in range(num_cols)]
+    if grid_template_columns is None:
+        grid_template_columns = " ".join(["auto" for i in range(num_cols)])
+
+    grid_template_areas = " ".join([f"col{i}" for i in range(num_cols)])
+
+    grid_box = GridBox(
+        children=outputs,
+        layout=Layout(
+            width=width,
+            grid_template_columns=grid_template_columns,
+            grid_template_areas=grid_template_areas,
+        ),
+    )
+
+    for content, output in zip(contents, outputs):
+        if content is not None:
+            with output:
+                display(content)
+
+    if also_return_outputs:
+        return grid_box, outputs
     else:
         return grid_box
 

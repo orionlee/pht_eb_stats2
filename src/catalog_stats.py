@@ -1,8 +1,31 @@
 from types import SimpleNamespace
+from typing import Callable
+
 import pandas as pd
 
 from common import as_nullable_int, insert
 from catalog import to_score_group
+
+
+def add_group(df: pd.DataFrame, column: str, group_func: Callable, recalc_if_exists=True):
+    """Add a column by grouping the values of the specified column."""
+    colname_group = f"{column}_group"
+    if not recalc_if_exists and colname_group in df.columns:
+        # the group column is already there, don't do it.
+        return df
+    col_group = [group_func(val) for val in df[column]]
+    if colname_group in df.columns:
+        df.pop(colname_group)
+    return insert(df, before_colname=column, colname=colname_group, value=col_group)
+
+
+def add_eb_score_group(df: pd.DataFrame, group_min=0, group_max=7, column="eb_score", recalc_if_exists=True):
+    # Usage: group the values in eb_score column in the catalog.
+    # It can also be used to group columns with similar semantics, e.g., num_eb_votes
+    def group_func(val):
+        return to_score_group(val, max_cap=group_max, min_cap=group_min)
+
+    return add_group(df, column, group_func, recalc_if_exists=recalc_if_exists)
 
 
 def pivot_by_eb_score_group(
@@ -11,16 +34,14 @@ def pivot_by_eb_score_group(
     group_min=0,
     group_max=7,
     recalc_group=False,
+    calc_totals_pct_col=False,
     columns="is_eb_catalog",
     also_return_styler=False,
 ):
     # dynamically compute a score group if needed or explicitly requested
     if index.endswith("_group") and (index not in df_catalog.columns or recalc_group):
         score_colname = index.replace("_group", "")
-        col_score_group = [to_score_group(score, max_cap=group_max, min_cap=group_min) for score in df_catalog[score_colname]]
-        if index in df_catalog.columns:
-            df_catalog.pop(index)
-        insert(df_catalog, before_colname=score_colname, colname=index, value=col_score_group)
+        add_eb_score_group(df_catalog, column=score_colname, group_min=group_min, group_max=group_max, recalc_if_exists=True)
 
     report = df_catalog.pivot_table(
         index=[index],
@@ -53,13 +74,25 @@ def pivot_by_eb_score_group(
 
     as_nullable_int(report, [col_key_t, col_key_f, col_key_na, col_key_totals])
 
+    col_key_totals = ("count", "tic_id", "Totals")
+    col_key_totals_pct = ("count", "tic_id", "Totals %")
+
+    if calc_totals_pct_col:
+        num_subjects = report.loc["Totals", col_key_totals]
+        report[col_key_totals] / num_subjects
+        insert(
+            report, before_colname=col_key_t_over_t_f, colname=col_key_totals_pct, value=report[col_key_totals] / num_subjects
+        )
+
     if not also_return_styler:
         return report
     else:
         # tweak output formatting.
         styler = report.style.format(
             {
-                col_key_t_over_t_f: "{:.2%}",  # use percentage
+                # use percentage
+                col_key_t_over_t_f: "{:.1%}",
+                col_key_totals_pct: "{:.1%}",
             }
         )
         return report, styler
