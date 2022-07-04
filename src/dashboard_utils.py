@@ -4,6 +4,9 @@ import ipywidgets
 from ipywidgets import GridBox, Layout
 from IPython.display import display, HTML, Image
 
+import astropy.coordinates as coord
+from astropy import units as u
+import numpy as np
 import pandas as pd
 from memoization import cached
 
@@ -242,3 +245,27 @@ def style(df_catalog, show_thumbnail=False):
         format_spec["best_subject_img_id"] = make_subject_img_id_image
 
     return df_catalog.style.format(format_spec).hide(axis="index")
+
+
+def plot_skymap(
+    df, ra_colname="TIC_ra", dec_colname="TIC_dec", ax=None, figsize=(12, 9), projection="mollweide", scatter_kwargs=None
+):
+    # adapted from: https://learn.astropy.org/tutorials/plot-catalog.html
+
+    if scatter_kwargs is None:
+        scatter_kwargs = dict()
+        scatter_kwargs["s"] = 0.2
+        scatter_kwargs["c"] = "gray"
+        scatter_kwargs["alpha"] = 0.5
+
+    fig = plt.figure(figsize=figsize)
+    if ax is None:
+        ax = fig.add_subplot(111, projection=projection)
+    ra = coord.Angle(df[ra_colname].fillna(np.nan) * u.degree)
+    ra = ra.wrap_at(180 * u.degree)
+    dec = coord.Angle(df[dec_colname].fillna(np.nan) * u.degree)
+    ax.scatter(ra.radian, dec.radian, **scatter_kwargs)
+    ax.set_xticklabels(["14h", "16h", "18h", "20h", "22h", "0h", "2h", "4h", "6h", "8h", "10h"])
+    ax.grid(True)
+
+    return ax
