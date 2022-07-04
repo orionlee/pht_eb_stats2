@@ -301,3 +301,32 @@ def plot_skymap(
     ax.grid(True)
 
     return ax
+
+
+#
+# User-level statistics visualization
+#
+
+
+def plot_cumulative_user_contributions(stats: pd.DataFrame, ranks_to_label=[1, 50, 100]):
+    stats = stats.set_index("rank", drop=True, inplace=False)
+    ax = stats.plot(y="cum_num_subjects %", kind="line")
+    for rank in ranks_to_label:
+        cum_pct = stats.loc[rank, "cum_num_subjects %"]
+        ax.scatter(rank, cum_pct, marker="X", s=64, color="red")
+        ax.annotate(f"rank {rank},\n{cum_pct:.0%}", (rank, cum_pct), xytext=(rank - 4, cum_pct - 0.1), fontsize=12)
+    # change x/ y limit to accommodate the annotation
+    ax.set_ylim(ax.get_ylim()[0] - 0.1, None)
+    ax.set_xlim(None, ax.get_xlim()[1] + 15)
+
+    num_subjects = int(stats.iloc[0]["cum_num_subjects"] / stats.iloc[0]["cum_num_subjects %"])
+    ax.set_xlabel("Contributor rank")
+    ax.set_ylabel("Cumulative % of tagged subjects")
+    ax.set_title(
+        f"""Cumulative % of subjects tagged by top contributors
+num. of subjects: {num_subjects}
+"""
+    )
+    ax.legend().remove()
+
+    return ax
