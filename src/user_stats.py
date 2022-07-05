@@ -1,4 +1,5 @@
-from typing import Sequence
+from types import SimpleNamespace
+from typing import Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -7,6 +8,10 @@ from common import as_nullable_int, insert, to_csv
 import pht_subj_meta
 import pht_subj_comments_per_comment
 import pht_subj_comments_per_subject
+
+import catalog_stats
+
+Str_Or_Str_Sequence = Union[str, Sequence[str]]
 
 
 def _has_common_elements(vals1: set, vals2: Sequence, as_int=False):
@@ -181,7 +186,21 @@ def load_top_users_cum_contributions_from_file(csv_path="../data/users_top_cum_c
     return df
 
 
-def calc_subject_user_rank_groups(df_subj_users: pd.DataFrame = None):
+RANK_GROUP_SPECS = [
+    # min, max, group_name_body
+    (1, 1, "001"),
+    (2, 2, "002"),
+    (3, 5, "003-5"),
+    (6, 20, "006-20"),
+    (21, 50, "021-50"),
+    (51, 100, "051-100"),
+    (101, np.inf, "101+"),
+]
+
+RANK_GROUP_NAMES = [spec[2] for spec in RANK_GROUP_SPECS]
+
+
+def calc_subject_user_rank_groups(df_subj_users: pd.DataFrame = None, rank_groups_specs=RANK_GROUP_SPECS):
     """For each subject, indicate if the following user_rank_group has tagged it as eclipsing binary.
 
     The groups are: 001, 002, 003-5, 006-20, 021-50, 051-100, 100+
@@ -195,21 +214,10 @@ def calc_subject_user_rank_groups(df_subj_users: pd.DataFrame = None):
     df_subj_users = df_subj_users[df_subj_users["has_eb_tags"] == 1].reset_index(drop=True)
     df_user_ranks = _create_user_eb_stats(df_subj_users)
 
-    rank_groups = [
-        # min, max, group_name_body
-        (1, 1, "001"),
-        (2, 2, "002"),
-        (3, 5, "003-5"),
-        (6, 20, "006-20"),
-        (21, 50, "021-50"),
-        (51, 100, "051-100"),
-        (101, np.inf, "101+"),
-    ]
-
     rank_subj_ids_df_list = []
-    for a_rank_group in rank_groups:
+    for a_rank_group_specs in rank_groups_specs:
         # rank_min, rank_max, rank_group_name = 3, 5, "By_User_Ranks_003-5"
-        rank_min, rank_max, rank_group_name = a_rank_group
+        rank_min, rank_max, rank_group_name = a_rank_group_specs
         rank_group_name = f"By_User_Ranks_{rank_group_name}"
 
         rank_user_ids = df_user_ranks[(rank_min <= df_user_ranks["user_rank"]) & (df_user_ranks["user_rank"] <= rank_max)][
@@ -259,6 +267,55 @@ def calc_n_save_tic_user_rank_groups(df_subj_users: pd.DataFrame = None, dry_run
 def load_tic_user_rank_groups_table_from_file(csv_path="../data/tic_eb_rank_groups.csv"):
     df = pd.read_csv(csv_path)
     return df
+
+
+def filter_pht_eb_catalog_by_user_ranks(df_catalog: pd.DataFrame, rank_groups: Str_Or_Str_Sequence = "003-005"):
+    if isinstance(rank_groups, str):
+        rank_groups = [rank_groups]
+
+    df_filter = load_tic_user_rank_groups_table_from_file()
+    for rank_group in rank_groups:
+        df_filter = df_filter[df_filter[f"By_User_Ranks_{rank_group}"]]
+
+    return df_catalog[df_catalog["tic_id"].isin(df_filter["tic_id"])].reset_index(drop=True)
+
+
+def calc_proxy_accuracy_stats_by_rank_group(df_catalog, max_eb_score=7, rank_group_names=RANK_GROUP_NAMES):
+    selector_proxy_accuracy_max = (f"0{max_eb_score}+", ("count", "tic_id", "T/(T+F)"))
+    selector_proxy_accuracy_all = ("Totals", ("count", "tic_id", "T/(T+F)"))
+
+    all_report, all_styler = catalog_stats.pivot_by_eb_score_group(
+        df_catalog, group_min=1, group_max=max_eb_score, recalc_group=True, also_return_styler=True
+    )
+    all_styler = all_styler.set_caption("All Users")
+
+    rank_group_reports, rank_group_stylers = [], []
+    rank_group_proxy_accuracy_max, rank_group_proxy_accuracy_all = [], []
+
+    for rank_groups in rank_group_names:
+        df_of_ranks = filter_pht_eb_catalog_by_user_ranks(df_catalog, rank_groups=rank_groups)
+        report, styler = catalog_stats.pivot_by_eb_score_group(df_of_ranks, also_return_styler=True)
+        styler = styler.set_caption(f"Users in ranks {rank_groups}")
+        rank_group_reports.append(report)
+        rank_group_stylers.append(styler)
+        rank_group_proxy_accuracy_max.append(report.loc[selector_proxy_accuracy_max])
+        rank_group_proxy_accuracy_all.append(report.loc[selector_proxy_accuracy_all])
+
+    df_rank_group_proxy_accuracy = pd.DataFrame(
+        {
+            "rank_group": rank_group_names,
+            f"proxy_accuracy, eb_score >= {max_eb_score}": rank_group_proxy_accuracy_max,
+            "proxy_accuracy, all": rank_group_proxy_accuracy_all,
+        }
+    )
+
+    return SimpleNamespace(
+        df_rank_group_proxy_accuracy=df_rank_group_proxy_accuracy,
+        all_report=all_report,
+        all_styler=all_styler,
+        rank_group_reports=rank_group_reports,
+        rank_group_stylers=rank_group_stylers,
+    )
 
 
 if __name__ == "__main__":
