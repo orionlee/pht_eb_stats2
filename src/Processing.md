@@ -59,7 +59,7 @@ python pht_subj_comments_per_comment.py
 
 It requires a mapping of synonyms of EB / transit tags, stored in `../data/pht_tag_map.csv`
 
-Output: `../data/pht_subj_comments_summary.csv `
+Output: `../data/pht_subj_comments_summary.csv`
 
 ```shell
 python pht_subj_comments_per_subject.py
@@ -95,7 +95,7 @@ Output: `../data/simbad_meta.csv`
 
 Codes in `simbad_meta.py`. It performs the following steps:
 
-### 1. Grab SIMBAD data for those that can be looked up by TIC IDs.
+### 1. Grab SIMBAD data for those that can be looked up by TIC IDs
 
 Done by `get_and_save_simbad_meta_of_all_by_tics()`.
 Output: `cache/simbad_meta_by_ticid.csv`
@@ -191,9 +191,10 @@ Note: ASAS-SN variable type is the same as VSX.
 python asas_sn_meta.py
 ```
 
-## Uer-level statistics
+## User-level statistics
 
 - `../data/users_top_cum_contributions.csv` : Top users' cumulative contributions
+- `../data/tic_eb_rank_groups.csv`: For each TIC, whether it has been tagged by user of specific rank groups. Used to analyze the tagging accuracy of different groups of users.
 
 ```shell
 python user_stats.py
@@ -218,9 +219,9 @@ python user_stats.py
   - `../data/users_top_cum_contributions.csv`
 
 - TODO:
-  -  for VSX_Is_EB, if the tic has no matching VSX, consider to make it `NA` rather than `-`
-    - for cases with `-`, there is still classification, they aren't deemed helpful by initial mapping
-    - maybe for SIMBAD, but SIMBAD entries has generic typing like star that is almost certainly not useful
+  - for VSX_Is_EB, if the tic has no matching VSX, consider to make it `NA` rather than `-`
+  - for cases with `-`, there is still classification, they aren't deemed helpful by initial mapping
+  - maybe for SIMBAD, but SIMBAD entries has generic typing like star that is almost certainly not useful
 
 
 ```shell
@@ -232,4 +233,6 @@ re-apply all to produce the catalog table.
 
 ```shell
 python catalog.py --remap
+# then re-calculate user-level stats
+python user_stats.py
 ```
