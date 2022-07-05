@@ -13,6 +13,7 @@ import tic_meta
 import simbad_meta
 import vsx_meta
 import asas_sn_meta
+import user_stats
 
 
 def calc_is_eb_combined(*val_list_list):
@@ -218,7 +219,7 @@ def create_pht_eb_subj_catalog(sector_group_func=None):
 
 
 def reprocess_all_mapping_and_save_pht_eb_candidate_catalog():
-    with tqdm(total=9) as pbar:
+    with tqdm(total=10) as pbar:
 
         pbar.set_description("Reprocessing all mapping to produce the catalog")
 
@@ -272,6 +273,10 @@ def reprocess_all_mapping_and_save_pht_eb_candidate_catalog():
         pbar.write("Overall catalog")
         # Merge to produce overall catalog
         combine_and_save_pht_eb_candidate_catalog()
+        pbar.update(1)
+
+        pbar.write("User Stats - Top Users Cumulative Contributions")
+        user_stats.calc_n_save_top_users_cum_contributions()
         pbar.update(1)
     pass
 

@@ -3,7 +3,7 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
-from common import as_nullable_int, insert
+from common import as_nullable_int, insert, to_csv
 import pht_subj_comments_per_comment
 import pht_subj_comments_per_subject
 
@@ -57,7 +57,8 @@ def _create_subject_user_stats(dry_run=False, dry_run_size=1000):
     return stats
 
 
-def create_user_eb_stats(df_subject_user_stats: pd.DataFrame = None, also_return_styler=False):
+def _create_user_eb_stats(df_subject_user_stats: pd.DataFrame = None, also_return_styler=False):
+    """Create a table of ordered list of user - num of subjects tagged"""
     if df_subject_user_stats is None:
         df_subject_user_stats = _create_subject_user_stats()
 
@@ -105,9 +106,9 @@ def _rank_group_func_default(rank):
 
 def pivot_by_rank_group(df_subject_user_stats: pd.DataFrame = None, df_user_stats: pd.DataFrame = None, rank_group_func=None):
     if df_subject_user_stats is None:
-        df_subject_user_stats = _create_subject_user_stats
+        df_subject_user_stats = _create_subject_user_stats()
     if df_user_stats is None:
-        df_user_stats = create_user_eb_stats(df_subject_user_stats)
+        df_user_stats = _create_user_eb_stats(df_subject_user_stats)
     if rank_group_func is None:
         rank_group_func = _rank_group_func_default
 
@@ -127,13 +128,18 @@ def pivot_by_rank_group(df_subject_user_stats: pd.DataFrame = None, df_user_stat
     return report
 
 
-def calc_top_users_contributions(
-    df_subject_user_stats: pd.DataFrame = None, df_user_stats: pd.DataFrame = None, top_n=10
+def calc_n_save_top_users_cum_contributions(
+    df_subject_user_stats: pd.DataFrame = None,
+    df_user_stats: pd.DataFrame = None,
+    top_n=100,
+    dry_run=False,
 ):
+    """Create a table of cumulative contributions by top users."""
+    out_path = "../data/users_top_cum_contributions.csv"
     if df_subject_user_stats is None:
-        df_subject_user_stats = _create_subject_user_stats
+        df_subject_user_stats = _create_subject_user_stats()
     if df_user_stats is None:
-        df_user_stats = create_user_eb_stats(df_subject_user_stats)
+        df_user_stats = _create_user_eb_stats(df_subject_user_stats)
 
     df = _add_user_rank_to_subject_user_stats(df_subject_user_stats, df_user_stats)
 
@@ -159,5 +165,16 @@ def calc_top_users_contributions(
         }
     )
 
+    if not dry_run:
+        to_csv(stats, out_path, mode="w")
+
     return stats
 
+
+def load_top_users_cum_contributions_from_file(csv_path="../data/users_top_cum_contributions.csv"):
+    df = pd.read_csv(csv_path)
+    return df
+
+
+if __name__ == "__main__":
+    calc_n_save_top_users_cum_contributions()

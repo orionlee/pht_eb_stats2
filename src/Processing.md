@@ -191,6 +191,14 @@ Note: ASAS-SN variable type is the same as VSX.
 python asas_sn_meta.py
 ```
 
+## Uer-level statistics
+
+- `../data/users_top_cum_contributions.csv` : Top users' cumulative contributions
+
+```shell
+python user_stats.py
+```
+
 
 ## PHT EB Candidate Catalog
 
@@ -204,7 +212,10 @@ python asas_sn_meta.py
   - Per-TIC PHT Subject Statistics
   - SIMBAD results
   - VSX results
-  - TODO: TIC metadata
+  - TIC metadata
+
+- It also creates some user-level statistics. Outputs:
+  - `../data/users_top_cum_contributions.csv`
 
 - TODO:
   -  for VSX_Is_EB, if the tic has no matching VSX, consider to make it `NA` rather than `-`

@@ -308,7 +308,14 @@ def plot_skymap(
 #
 
 
-def plot_cumulative_user_contributions(stats: pd.DataFrame, ranks_to_label=[1, 50, 100]):
+def plot_cumulative_user_contributions(stats: pd.DataFrame, ranks_to_label=[1, 5, 50, 100]):
+    """Plot the (top) users contributions in the form of cumulative percentages of
+    subjects covered by the users.
+
+    See `user_stats.load_top_users_contributions_from_table()` :
+    load the precomputed cumulative top users contributions that can be plotted
+    by this function.
+    """
     stats = stats.set_index("rank", drop=True, inplace=False)
     ax = stats.plot(y="cum_num_subjects %", kind="line")
     for rank in ranks_to_label:
