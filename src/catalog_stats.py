@@ -95,6 +95,23 @@ def pivot_by_eb_score_group(
                 col_key_totals_pct: "{:.1%}",
             }
         )
+        # make caption visually better linked with the pivot table
+        style_spec = [
+            dict(
+                selector="caption",
+                props=[
+                    ("caption-side", "top"),
+                    ("font-weight", "bold"),
+                    ("color", "#333"),
+                    ("font-size", "110%"),
+                    # remove padding-bottom, as the pivot header has plenty of whitespaces already
+                    ("padding-bottom", "0"),
+                    ("border-bottom", "1px dotted gray"),
+                ],
+            )
+        ]
+        styler = styler.set_table_styles(style_spec)
+
         return report, styler
 
 
