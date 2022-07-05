@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from common import as_nullable_int, insert, to_csv
+import pht_subj_meta
 import pht_subj_comments_per_comment
 import pht_subj_comments_per_subject
 
@@ -96,12 +97,16 @@ def _rank_group_func_default(rank):
         return "001"
     elif rank == 2:
         return "002"
-    elif rank <= 10:
-        return "003-10"
+    elif rank <= 5:
+        return "003-5"
+    elif rank <= 20:
+        return "006-20"
+    elif rank <= 50:
+        return "021-50"
     elif rank <= 100:
-        return "010-100"
+        return "051-100"
     else:
-        return "100+"
+        return "101+"
 
 
 def pivot_by_rank_group(df_subject_user_stats: pd.DataFrame = None, df_user_stats: pd.DataFrame = None, rank_group_func=None):
@@ -176,5 +181,86 @@ def load_top_users_cum_contributions_from_file(csv_path="../data/users_top_cum_c
     return df
 
 
+def calc_subject_user_rank_groups(df_subj_users: pd.DataFrame = None):
+    """For each subject, indicate if the following user_rank_group has tagged it as eclipsing binary.
+
+    The groups are: 001, 002, 003-5, 006-20, 021-50, 051-100, 100+
+    """
+
+    if df_subj_users is None:
+        df_subj_users = _create_subject_user_stats()
+
+    # OPEN: should I filter by has_eb_tags == 1 (just tagged some eb-like tags), or
+    # by eb_score > 0 (which would filter those that also tagged subjects with transit tags)?
+    df_subj_users = df_subj_users[df_subj_users["has_eb_tags"] == 1].reset_index(drop=True)
+    df_user_ranks = _create_user_eb_stats(df_subj_users)
+
+    rank_groups = [
+        # min, max, group_name_body
+        (1, 1, "001"),
+        (2, 2, "002"),
+        (3, 5, "003-5"),
+        (6, 20, "006-20"),
+        (21, 50, "021-50"),
+        (51, 100, "051-100"),
+        (101, np.inf, "101+"),
+    ]
+
+    rank_subj_ids_df_list = []
+    for a_rank_group in rank_groups:
+        # rank_min, rank_max, rank_group_name = 3, 5, "By_User_Ranks_003-5"
+        rank_min, rank_max, rank_group_name = a_rank_group
+        rank_group_name = f"By_User_Ranks_{rank_group_name}"
+
+        rank_user_ids = df_user_ranks[(rank_min <= df_user_ranks["user_rank"]) & (df_user_ranks["user_rank"] <= rank_max)][
+            "user_id"
+        ]
+        rank_subj_ids = df_subj_users[df_subj_users["user_id"].isin(rank_user_ids)]["subject_id"].unique()
+
+        rank_subj_ids_series = pd.DataFrame(
+            pd.Series(data=np.full_like(rank_subj_ids, True), index=rank_subj_ids, name=rank_group_name, dtype="boolean")
+        )
+        rank_subj_ids_df_list.append(rank_subj_ids_series)
+
+    # prepare to join with users of a particular rank groups
+    df = pd.DataFrame({"subject_id": df_subj_users["subject_id"].unique()})
+    df = df.set_index("subject_id", drop=False)
+    df = df.join(rank_subj_ids_df_list, how="left")
+    df.reset_index(drop=True, inplace=True)  # drop the no-longer useful subject_id index
+    return df
+
+
+def calc_n_save_tic_user_rank_groups(df_subj_users: pd.DataFrame = None, dry_run=False):
+    """For each TIC, indicate the user rank group(s) that have tagged it as an eclipsing binary.
+
+    It is an aggregation of the per-subject stats in `calc_subject_user_rank_groups()`
+    to per-TIC stats.
+    """
+    out_path = "../data/tic_eb_rank_groups.csv"
+
+    df_subj_rank_groups = calc_subject_user_rank_groups(df_subj_users)
+
+    df_tic_subj = pht_subj_meta.load_subject_meta_table_from_file()[["tic_id", "subject_id"]]
+
+    df = df_tic_subj.set_index("subject_id").join(df_subj_rank_groups.set_index("subject_id"), how="left")
+    df.sort_values("tic_id", inplace=True)
+
+    # for each TIC, do a logical OR on the By_User_Ranks column
+    # e.g., if any of the subject of a TIC is in User_Ranks_003-5,
+    # the TIC is True for By_User_Ranks_003-5
+    res = df.groupby("tic_id", as_index=False).any()
+
+    if not dry_run:
+        to_csv(res, out_path, mode="w")
+
+    return res
+
+
+def load_tic_user_rank_groups_table_from_file(csv_path="../data/tic_eb_rank_groups.csv"):
+    df = pd.read_csv(csv_path)
+    return df
+
+
 if __name__ == "__main__":
     calc_n_save_top_users_cum_contributions()
+    calc_n_save_tic_user_rank_groups()
