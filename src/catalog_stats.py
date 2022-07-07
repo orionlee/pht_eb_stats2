@@ -4,7 +4,31 @@ from typing import Callable
 import pandas as pd
 
 from common import as_nullable_int, insert
+import catalog
+import pht_subj_meta
 from catalog import to_score_group
+
+
+def summary(min_eb_score) -> dict:
+    df_catalog = catalog.load_pht_eb_candidate_catalog_from_file()
+    num_tics = len(df_catalog)
+    num_tics_with_high_certainty = len(df_catalog[df_catalog["eb_score"] >= min_eb_score])
+
+    df_subj = pht_subj_meta.load_subject_meta_table_from_file(include_simulation=False)
+    num_subjects = len(df_subj)
+    sectors = df_subj["sector"].unique()
+    sectors.sort()
+    num_sectors = len(sectors)
+    start_sector, end_sector = sectors[0], sectors[-1]
+
+    return {
+        "Num. of PHT Subjects": num_subjects,
+        "Num. of EB Candidates (TICs)": num_tics,
+        "Num. of EB Candidates with high certainty": num_tics_with_high_certainty,
+        "Num. of sectors": num_sectors,
+        "First Sector": start_sector,
+        "Last Sector": end_sector,
+    }
 
 
 def add_group(df: pd.DataFrame, column: str, group_func: Callable, recalc_if_exists=True):
