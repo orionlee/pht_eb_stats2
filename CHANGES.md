@@ -1,5 +1,10 @@
 # Change log
 
+## 0.5.2
+
+- Added some top level summary statistics
+- Discussion of the results so far.
+
 ## 0.5.1
 
 - Added some PHT user statistics: top users contributions, tagging accuracy of
