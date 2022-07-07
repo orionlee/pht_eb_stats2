@@ -14,6 +14,8 @@ from matplotlib import pyplot as plt
 
 import tic_meta
 import catalog
+import catalog_stats
+import user_stats
 
 #
 # Constants to select commonly used column subsets from various catalogs
@@ -133,6 +135,25 @@ def n_columns(
         return grid_box, outputs
     else:
         return grid_box
+
+
+def display_summary(min_eb_score):
+    summary = catalog_stats.summary(min_eb_score=min_eb_score)
+    total_num_users = user_stats.load_total_num_users_from_file()
+    summary["Num. of users"] = total_num_users
+
+    # use dataframe to pretty print the result
+    df = pd.DataFrame.from_dict(summary, orient="index")
+    df.rename(columns={0: ""}, inplace=True)
+    styler = df.style.format(
+        {
+            # separate thousands
+            "": "{:,}",
+        }
+    )
+
+    display(styler)
+    return styler
 
 
 def get_catalog(type="pht_eb"):
@@ -308,7 +329,7 @@ def plot_skymap(
 #
 
 
-def plot_cumulative_user_contributions(stats: pd.DataFrame, ranks_to_label=[1, 5, 50, 100]):
+def plot_cumulative_user_contributions(stats: pd.DataFrame, ranks_to_label=[1, 5, 50, 100], also_return_label_df=False):
     """Plot the (top) users contributions in the form of cumulative percentages of
     subjects covered by the users.
 
@@ -318,8 +339,10 @@ def plot_cumulative_user_contributions(stats: pd.DataFrame, ranks_to_label=[1, 5
     """
     stats = stats.set_index("rank", drop=True, inplace=False)
     ax = stats.plot(y="cum_num_subjects %", kind="line")
+    cum_pct_list = []
     for rank in ranks_to_label:
         cum_pct = stats.loc[rank, "cum_num_subjects %"]
+        cum_pct_list.append(cum_pct)
         ax.scatter(rank, cum_pct, marker="X", s=64, color="red")
         ax.annotate(f"rank {rank},\n{cum_pct:.0%}", (rank, cum_pct), xytext=(rank - 4, cum_pct - 0.1), fontsize=12)
     # change x/ y limit to accommodate the annotation
@@ -336,4 +359,9 @@ num. of subjects: {num_subjects}
     )
     ax.legend().remove()
 
-    return ax
+    if not also_return_label_df:
+        return ax
+    else:
+        df = pd.DataFrame({"Rank": ranks_to_label, "Cumulative Percentage": cum_pct_list})
+        df.set_index("Rank", inplace=True)
+        return ax, df

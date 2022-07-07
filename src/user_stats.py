@@ -144,8 +144,10 @@ def calc_n_save_top_users_cum_contributions(
     top_n=100,
     dry_run=False,
 ):
-    """Create a table of cumulative contributions by top users."""
+    """Create a table of cumulative contributions by top users, and a table of total number of users."""
     out_path = "../data/users_top_cum_contributions.csv"
+    out_path_num_users = "../data/users_num_users.csv"
+
     if df_subject_user_stats is None:
         df_subject_user_stats = _create_subject_user_stats()
     if df_user_stats is None:
@@ -175,8 +177,15 @@ def calc_n_save_top_users_cum_contributions(
         }
     )
 
+    total_num_users = df_subject_user_stats["user_id"].nunique()
+    stats.attrs["total_num_users"] = total_num_users
+
     if not dry_run:
         to_csv(stats, out_path, mode="w")
+
+    if not dry_run:
+        df_total_number_users = pd.DataFrame.from_dict(dict(num_users=[total_num_users]))
+        to_csv(df_total_number_users, out_path_num_users, mode="w")
 
     return stats
 
@@ -184,6 +193,11 @@ def calc_n_save_top_users_cum_contributions(
 def load_top_users_cum_contributions_from_file(csv_path="../data/users_top_cum_contributions.csv"):
     df = pd.read_csv(csv_path)
     return df
+
+
+def load_total_num_users_from_file(csv_path="../data/users_num_users.csv"):
+    df = pd.read_csv(csv_path)
+    return df["num_users"].iloc[0]
 
 
 RANK_GROUP_SPECS = [

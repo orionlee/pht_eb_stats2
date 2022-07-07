@@ -23,8 +23,8 @@ def summary(min_eb_score) -> dict:
 
     return {
         "Num. of PHT Subjects": num_subjects,
-        "Num. of EB Candidates (TICs)": num_tics,
-        "Num. of EB Candidates with high certainty": num_tics_with_high_certainty,
+        "Num. of EBs / EB Candidates (TICs)": num_tics,
+        "Num. of EBs / EB Candidates with high certainty": num_tics_with_high_certainty,
         "Num. of sectors": num_sectors,
         "First Sector": start_sector,
         "Last Sector": end_sector,
