@@ -224,7 +224,7 @@ def reprocess_all_mapping_and_save_pht_eb_candidate_catalog():
 
         pbar.write("PHT per-subject summary")
         # , affected by
-        # - tag mapping table: `../data/pht_tag_map.csv`
+        # - tag mapping table: `../data/auxillary/pht_tag_map.csv`
         # - the eb vote count logic
         pht_subj_comments_per_subject.save_and_summarize_of_all_subjects()
         pbar.update(1)
@@ -241,7 +241,7 @@ def reprocess_all_mapping_and_save_pht_eb_candidate_catalog():
 
         pbar.write("SIMBAD Is_EB table")
         # , affected by
-        # - OTYPE mapping table: `../data/simbad_typemap.csv`
+        # - OTYPE mapping table: `../data/auxillary/simbad_typemap.csv`
         simbad_meta.map_and_save_simbad_is_eb_of_all(warn_types_not_mapped=True)
         pbar.update(1)
 

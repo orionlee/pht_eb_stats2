@@ -9,7 +9,7 @@ from pht_subj_comments_per_comment import load_comment_summaries_table_from_file
 
 def _load_tag_map():
     """Return a dict fo tag -> tag group"""
-    df_map = pd.read_csv("../data/pht_tag_map.csv")
+    df_map = pd.read_csv("../data/auxillary/pht_tag_map.csv")
     return df_map.set_index("tag", drop=True).to_dict()["group"]
 
 

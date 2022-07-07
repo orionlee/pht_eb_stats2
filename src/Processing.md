@@ -57,7 +57,7 @@ python pht_subj_comments_per_comment.py
 
 #### Process comments to produce per-subject summary (tags, etc.)
 
-It requires a mapping of synonyms of EB / transit tags, stored in `../data/pht_tag_map.csv`
+It requires a mapping of synonyms of EB / transit tags, stored in `../data/auxillary/pht_tag_map.csv`
 
 Output: `../data/pht_subj_comments_summary.csv`
 
@@ -132,7 +132,7 @@ Output: `../data/simbad_meta.csv`
 Done by `map_and_save_simbad_is_eb_of_all()`
 Output: `../data/simbad_is_eb.csv`
 
-Note: the mapping between SIMBAD `OTYPE` to `Is_EB` is driven by `../data/simbad_typemap.csv`
+Note: the mapping between SIMBAD `OTYPE` to `Is_EB` is driven by `../data/auxillary/simbad_typemap.csv`
 mapping table. The mapping needs to be updated if an `OTYPE` value is not included there.
 
 #### SIMBAD Result summary

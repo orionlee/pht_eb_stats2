@@ -395,11 +395,11 @@ def get_aliases(simbad_meta_row):
 #
 class SIMBADTypeMapAccessor(AbstractTypeMapAccessor):
     # Note:
-    # `../data/simbad_typemap.csv` is constructed by
+    # `../data/auxillary/simbad_typemap.csv` is constructed by
     # - turning a list of otypes to a table based on SIMBAD definition
     #   , from `_to_typemap_df()`
     # - manually enter Is_EB value
-    def __init__(self, csv_path="../data/simbad_typemap.csv"):
+    def __init__(self, csv_path="../data/auxillary/simbad_typemap.csv"):
         super().__init__(csv_path, "SIMBAD_Type")
 
     def _split_types_str(self, types_str):
@@ -460,7 +460,7 @@ class SIMBADOTypesAccessor:
     def _get_otypes_from_remote(cls, url=None):
         if url is None:
             # local version of https://simbad.cds.unistra.fr/guide/otypes/json/otype_nodes.json
-            with open("../data/simbad_otype_nodes.json", mode="r") as f:
+            with open("../data/auxillary/simbad_otype_nodes.json", mode="r") as f:
                 return json.load(f)
         else:
             return fetch_json(url)
@@ -508,5 +508,5 @@ if __name__ == "__main__":
     combine_and_save_simbad_meta_by_tics_and_xmatch(min_score_to_include=0)
 
     # for each SIMBAD record, map it OTYPES to Is_EB
-    # it depends on the mapping defined in `data/simbad_typemap.csv`
+    # it depends on the mapping defined in `data/auxillary/simbad_typemap.csv`
     map_and_save_simbad_is_eb_of_all(warn_types_not_mapped=True)
