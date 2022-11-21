@@ -26,6 +26,8 @@ ipywidgets = { version = "^7.7.1", optional = true }  # for notebook dashboard
 matplotlib = { version = "^3.5.2", optional = true }  # for notebook dashboard
 memoization = { version = "^0.4.0", optional = true }  # for notebook dashboard
 tabulate = { version = "^0.8.10", optional = true }  # for dataframe.to_markdown()
+lightkurve = { version="^2.3.0, optional = true }  # for vetting individual EBs
+xmltodict = { version="^0.13.0, optional = true }  # for vetting individual EBs
 
 [tool.poetry.dev-dependencies]
 black = ">=22.3.0"

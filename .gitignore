@@ -7,4 +7,7 @@ src/scratch.ipynb
 # data downloaded locally for further processing
 src/cache/
 
+# TESS data products downloaded locally for vetting individual targets
+vetting/data/mastDownload
+
 tmp/
