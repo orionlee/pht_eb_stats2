@@ -97,36 +97,50 @@ TEN_SECONDS = 10
 
 ##@sleep_and_retry
 ##@limits(calls=NUM_LIVE_TESS_EB_CALLS, period=TEN_SECONDS)
-def _get_live_tesseb_meta_of_tic(tic, also_return_soap=False):
+def _do_get_live_tesseb_meta_html_of_tic(tic):
     def get_live_tess_eb_url_of_tic(tic_padded):
+        tic_padded = str(tic).zfill(10)  # the canonical TIC in TESS EB is zero-padded to 10 digits
         url = f"http://tessebs.villanova.edu/{tic_padded}"
         return url
 
-    tic_padded = str(tic).zfill(10)  # the canonical TIC in TESS EB is zero-padded to 10 digits
     url = get_live_tess_eb_url_of_tic(tic)
     r = requests.get(url)
 
+    # if a TIC is not in the DB, the site returns HTTP 500 with IndexError. The text:
+    # f"<h1>IndexError at /{tic_padded}</h1>" (with some \s, \n in the spaces)
+    # we do not treat this as an actual exception
+    if r.status_code == 500 and "<h1>IndexError" in r.text:
+        return r.text
+
+    r.raise_for_status()
+
+    return r.text
+
+
+def _get_live_tesseb_meta_html_of_tic(tic, cache=True):
+    # TODO: handle caching
+    return _do_get_live_tesseb_meta_html_of_tic(tic)
+
+
+def _get_live_tesseb_meta_of_tic(tic, also_return_soap=False):
     def none_result():
         if also_return_soap:
             return None, None
         else:
             return None
 
-    if r.status_code == 500 and "<h1>IndexError" in r.text:
-        # if a TIC is not in the DB, the site returns HTTP 500 with IndexError
-        # to be safe, we  should the error in the HTML
-        # f"<h1>IndexError at /{tic_padded}</h1>" (with some \s, \n in the spaces)
+    html = _get_live_tesseb_meta_html_of_tic(tic)
+
+    if "<h1>IndexError" in html:
         return none_result()
-    # raise error for other HTTP error
-    r.raise_for_status()
 
     # parse the HTML
-    soup = BeautifulSoup(r.content, 'html.parser')
+    soup = BeautifulSoup(html, 'html.parser')
 
     def extract(table_idx, col_idx, col_header):
         """Helper to extract a cell from the HTML tables"""
         col_header_actual = soup.select_one(f"body > table:nth-of-type({table_idx}) th:nth-of-type({col_idx}) > div ").text
-        # the text abvoe contains cooltip too, In catalog?<span class="tooltiptext">Is this signal in the EB catalog?</span>
+        # the text above contains cooltip too, In catalog?<span class="tooltiptext">Is this signal in the EB catalog?</span>
         # so the match by startswith
         if not col_header_actual.startswith(col_header):
             raise Exception(f"Extraction failed for {col_header}. The column is actually {col_header_actual} for {url}")
@@ -147,6 +161,7 @@ def _get_live_tesseb_meta_of_tic(tic, also_return_soap=False):
     # case the tic is in catalog, scrape the rest of the page
     # the keys are made to be consistent with those from static TESS EB Vizier result
 
+    tic_padded = str(tic).zfill(10)  # the canonical TIC in TESS EB is zero-padded to 10 digits
     result = {}
     result["TIC"] = tic_padded
 
