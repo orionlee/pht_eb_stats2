@@ -1,4 +1,4 @@
-# Processing to get the data
+# Processing to get the data for the catalog
 
 ## PHT Subjects with eclipsing binary tag
 
@@ -235,4 +235,29 @@ re-apply all to produce the catalog table.
 python catalog.py --remap
 # then re-calculate user-level stats
 python user_stats.py
+```
+
+---
+
+# Processing to get supplementary data
+
+There is some supplementary data that is not part of the catalog, but is used in subsequent vetting and analysis
+
+Outputs:
+
+- `../data/tesseb_meta.py`
+
+Steps:
+
+1. Get TESSEB records using Vizier (Vizier has a static snapshot for sectors 1 - 26 data)
+2. For TICs not found in Vizier, get TESSEB records from Live TESS EB database
+   - remove TICs already found in Vizier
+   - remove TICs with max of sector tagged in PHT is <= 26 (they should be covered by Vizier if data is real)
+   - fetch and scrape Live TESS EB. Consider throttling and caching the HTML result.
+3. Combine the two lists.
+
+## TESS EB crossmatch
+
+```shell
+python tesseb_meta.py
 ```
