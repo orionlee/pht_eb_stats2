@@ -65,8 +65,6 @@ def _get_vizier_tesseb_meta_of_tics(tics, **kwargs):
     # columns for Vizier UI to generate links to Live TESS EB / Simbad. Irrelevant here
     result.remove_columns(["TESSebs", "Simbad"])
 
-    _add_convenience_columns(result, tesseb_source_type=TESS_EB_CATALOG)
-
     return result
 
 
@@ -184,7 +182,6 @@ def _get_live_tesseb_meta_of_tic(tic, also_return_soap=False):
 
     # the table is on par with the the one from Vizier
     result = Table(rows=[result])
-    _add_convenience_columns(result, tesseb_source_type="live")
 
     if also_return_soap:
         return result, soup  # return parsed HTML for debug
