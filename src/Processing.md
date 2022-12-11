@@ -249,12 +249,12 @@ Outputs:
 
 Steps:
 
-1. Get TESSEB records using Vizier (Vizier has a static snapshot for sectors 1 - 26 data)
-2. For TICs not found in Vizier, get TESSEB records from Live TESS EB database
+1. Get TESSEB records using Vizier (Vizier has a static snapshot for sectors 1 - 26 data) (`_get_and_save_vizier_tesseb_meta_of_all()`)
+2. For TICs not found in Vizier, get TESSEB records from Live TESS EB database. (`_get_and_save_live_tesseb_meta_of_remaining()`)
    - remove TICs already found in Vizier
    - remove TICs with max of sector tagged in PHT is <= 26 (they should be covered by Vizier if data is real)
    - fetch and scrape Live TESS EB. Consider throttling and caching the HTML result.
-3. Combine the two lists.
+3. Combine the two lists. (`combine_and_save_tesseb_meta_from_vizier_and_live()`)
 
 ## TESS EB crossmatch
 

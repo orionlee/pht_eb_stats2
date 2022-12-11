@@ -5,9 +5,16 @@ from astropy import units as u
 import numpy as np
 import pandas as pd
 
+
+# BEGIN for live TESS EB access
+import requests
+from bs4 import BeautifulSoup
+from astropy.table import Table
+# END for live TESS EB access
+
 from ratelimit import limits, sleep_and_retry
 
-from common import bulk_process, has_value, load_tic_ids_from_file
+from common import bulk_process, has_value, to_csv, load_tic_ids_from_file
 
 
 def _add_convenience_columns(result, tesseb_source_type):
@@ -85,6 +92,139 @@ def _get_and_save_vizier_tesseb_meta_of_all(dry_run=False, dry_run_size=1000):
     return res
 
 
+# throttle HTTP calls to Live TESS EB
+NUM_LIVE_TESS_EB_CALLS = 5
+TEN_SECONDS = 10
+
+##@sleep_and_retry
+##@limits(calls=NUM_LIVE_TESS_EB_CALLS, period=TEN_SECONDS)
+def _get_live_tesseb_meta_of_tic(tic, also_return_soap=False):
+    def get_live_tess_eb_url_of_tic(tic_padded):
+        url = f"http://tessebs.villanova.edu/{tic_padded}"
+        return url
+
+    tic_padded = str(tic).zfill(10)  # the canonical TIC in TESS EB is zero-padded to 10 digits
+    url = get_live_tess_eb_url_of_tic(tic)
+    r = requests.get(url)
+
+    def none_result():
+        if also_return_soap:
+            return None, None
+        else:
+            return None
+
+    if r.status_code == 500 and "<h1>IndexError" in r.text:
+        # if a TIC is not in the DB, the site returns HTTP 500 with IndexError
+        # to be safe, we  should the error in the HTML
+        # f"<h1>IndexError at /{tic_padded}</h1>" (with some \s, \n in the spaces)
+        return none_result()
+    # raise error for other HTTP error
+    r.raise_for_status()
+
+    # parse the HTML
+    soup = BeautifulSoup(r.content, 'html.parser')
+
+    def extract(table_idx, col_idx, col_header):
+        """Helper to extract a cell from the HTML tables"""
+        col_header_actual = soup.select_one(f"body > table:nth-of-type({table_idx}) th:nth-of-type({col_idx}) > div ").text
+        # the text abvoe contains cooltip too, In catalog?<span class="tooltiptext">Is this signal in the EB catalog?</span>
+        # so the match by startswith
+        if not col_header_actual.startswith(col_header):
+            raise Exception(f"Extraction failed for {col_header}. The column is actually {col_header_actual} for {url}")
+        cell_val = soup.select_one(f"body > table:nth-of-type({table_idx}) tr:nth-of-type(1) > td:nth-of-type({col_idx})").text.strip()
+        return cell_val
+
+    def safe_float(val):
+        if val is None or val == '':
+            return np.ma.masked
+        return float(val)
+
+    in_catalog_val = extract(2, 2, "In catalog?")
+    if "False" == in_catalog_val:  # cases that there is an entry, but is not really in the catalog, e.g., 237280189
+        return none_result()
+    if "True" != in_catalog_val:
+        raise Exception(f"Unrecognized In Catalog value {in_catalog_val} in TESS DB HTML for {url}")
+
+    # case the tic is in catalog, scrape the rest of the page
+    # the keys are made to be consistent with those from static TESS EB Vizier result
+
+    result = {}
+    result["TIC"] = tic_padded
+
+    result["m_TIC"] = int(extract(2, 1,"Signal"))
+    result["BJD0"] = safe_float(extract(2, 3,"t0 [days]"))
+    result["e_BJD0"] = safe_float(extract(2, 4,"σt0 [days]"))
+    result["Per"] = safe_float(extract(2, 5,"P [days]"))
+    result["e_Per"] = safe_float(extract(2, 6,"σP [days]"))
+    result["Morph"] = safe_float(extract(2, 7,"Morphology"))
+
+    result["Wp-pf"] = safe_float(extract(3, 1,"wp,pf"))
+    result["Dp-pf"] = safe_float(extract(3, 3,"dp,pf"))
+    result["Phip-pf"] = safe_float(extract(3, 5,"φp,pf"))
+    result["Ws-pf"] = safe_float(extract(3, 2,"ws,pf"))
+    result["Ds-pf"] = safe_float(extract(3, 4,"ds,pf"))
+    result["Phis-pf"] = safe_float(extract(3, 6,"φs,pf"))
+
+    result["Wp-2g"] = safe_float(extract(3, 6 + 1,"wp,2g"))
+    result["Dp-2g"] = safe_float(extract(3, 6 + 3,"dp,2g"))
+    result["Phip-2g"] = safe_float(extract(3, 6 + 5,"φp,2g"))
+    result["Ws-2g"] = safe_float(extract(3, 6 + 2,"ws,2g"))
+    result["Ds-2g"] = safe_float(extract(3, 6 + 4,"ds,2g"))
+    result["Phis-2g"] = safe_float(extract(3, 6 + 6,"φs,2g"))
+
+    result["Sectors"] = str(extract(1, 11, "Sectors"))
+    result["UpDate"] = str(extract(2, 8,"Last modified"))
+    # TODO: the datetime from Vizier is a string ISO format. Consider to convert it.
+    # the datetime text in the cell cannot be parsed by datetime.strptime() easily, e.g., for
+    # "Sept. 16, 2021, 5:37 p.m."
+    # strptime() can only work in a slightly different format:
+    # "Sep. 16, 2021, 05:37 pm"
+    # res = datetime.strptime("Sep. 16, 2021, 05:37 pm", "%b. %d, %Y, %I:%M %p")
+
+    # the table is on par with the the one from Vizier
+    result = Table(rows=[result])
+    _add_convenience_columns(result, tesseb_source_type="live")
+
+    if also_return_soap:
+        return result, soup  # return parsed HTML for debug
+    else:
+        return result
+
+
+def _get_and_save_live_tesseb_meta_of_tic(tic, is_append=True):
+    res = _get_live_tesseb_meta_of_tic(tic)
+
+    out_path = "cache/tesseb_meta_from_live.csv"
+
+    if is_append:
+        csv_mode, csv_header = "a", False
+    else:
+        csv_mode, csv_header = "w", True
+
+    _do_save_tesseb_meta(out_path, res, csv_mode, csv_header)
+
+    return res
+
+
+def _get_and_save_live_tesseb_meta_of_remaining(dry_run=False):
+    print("TODO:")
+
+
+def combine_and_save_tesseb_meta_from_vizier_and_live():
+    out_path = "../data/tesseb_meta.csv"
+
+    df_from_vizier = load_tesseb_meta_table_from_file("cache/tesseb_meta_from_vizier.csv")
+    df_from_live = load_tesseb_meta_table_from_file("cache/tesseb_meta_from_live.csv")
+
+    df = pd.concat([df_from_vizier, df_from_live])
+    df = df.sort_values("TIC", ascending=True)
+    df.reset_index(drop=True, inplace=True)
+
+    to_csv(df, out_path, mode="w")
+
+    return df
+
+
 def load_tesseb_meta_table_from_file(csv_path="../data/tesseb_meta.csv"):
     df = pd.read_csv(csv_path, dtype={})
     return df
@@ -92,4 +232,5 @@ def load_tesseb_meta_table_from_file(csv_path="../data/tesseb_meta.csv"):
 
 if __name__ == "__main__":
     _get_and_save_vizier_tesseb_meta_of_all(dry_run=False)
-    print("TODO: to complete")
+    _get_and_save_live_tesseb_meta_of_remaining(dry_run=False)
+    combine_and_save_tesseb_meta_from_vizier_and_live()
