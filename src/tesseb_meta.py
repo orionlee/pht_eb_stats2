@@ -157,7 +157,12 @@ def _get_live_tesseb_meta_of_tic(tic, also_return_soap=False):
         # so the match by startswith
         if not col_header_actual.startswith(col_header):
             raise Exception(f"Extraction failed for {col_header}. The column is actually {col_header_actual} for {tic}")
-        cell_val = soup.select_one(f"body > table:nth-of-type({table_idx}) tr:nth-of-type(1) > td:nth-of-type({col_idx})").text.strip()
+        cell_el = soup.select_one(f"body > table:nth-of-type({table_idx}) tr:nth-of-type(1) > td:nth-of-type({col_idx})")
+        if cell_el is not None:
+            cell_val = cell_el.text.strip()
+        else:
+            # case the cell is not found at all, it happens for some TIC (table rows are empty)
+            cell_val = None
         return cell_val
 
     def safe_float(val):
@@ -166,7 +171,10 @@ def _get_live_tesseb_meta_of_tic(tic, also_return_soap=False):
         return float(val)
 
     in_catalog_val = extract(2, 2, "In catalog?")
-    if "False" == in_catalog_val:  # cases that there is an entry, but is not really in the catalog, e.g., 237280189
+    # cases that there is an entry, but is not really in the catalog
+    # 1. in_catalog cell is False, e.g., 237280189
+    # 2. the table has no row at all, e.g., 9054318
+    if in_catalog_val is None or "False" == in_catalog_val:
         return none_result()
     if "True" != in_catalog_val:
         raise Exception(f"Unrecognized In Catalog value {in_catalog_val} in TESS DB for TIC {tic}")
