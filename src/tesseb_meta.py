@@ -1,3 +1,4 @@
+from pathlib import Path
 import re
 
 from astroquery.vizier import Vizier
@@ -118,8 +119,19 @@ def _do_get_live_tesseb_meta_html_of_tic(tic):
 
 
 def _get_live_tesseb_meta_html_of_tic(tic, cache=True):
-    # TODO: handle caching
-    return _do_get_live_tesseb_meta_html_of_tic(tic)
+    local_path = Path(f"cache/tesseb/l{tic}.html")
+    # case cache hit
+    if cache and local_path.is_file():
+        # print(f"cache hit. local_path: {local_path}")
+        return local_path.read_text(encoding="utf-8")
+
+    # case cache miss
+    html = _do_get_live_tesseb_meta_html_of_tic(tic)
+
+    if cache:
+        local_path.write_text(html, encoding="utf-8")
+
+    return html
 
 
 def _get_live_tesseb_meta_of_tic(tic, also_return_soap=False):
