@@ -15,6 +15,7 @@ from astropy.table import Table
 from ratelimit import limits, sleep_and_retry
 
 from common import bulk_process, has_value, to_csv, load_tic_ids_from_file
+import tic_pht_stats
 
 
 def _add_convenience_columns(result, tesseb_source_type):
@@ -69,13 +70,13 @@ def _get_vizier_tesseb_meta_of_tics(tics, **kwargs):
     return result
 
 
-def _do_save_tesseb_meta(out_path, meta_table, csv_mode, csv_header):
-    meta_table.to_pandas().to_csv(out_path, index=False, mode=csv_mode, header=csv_header)
+def _do_save_tesseb_meta(out_path, meta_table, csv_mode):
+    return to_csv(meta_table, out_path, mode=csv_mode)
 
 
 def _save_vizier_tesseb_meta(meta_table):
     out_path = "cache/tesseb_meta_from_vizier.csv"
-    return _do_save_tesseb_meta(out_path, meta_table, csv_mode="w", csv_header=True)
+    return _do_save_tesseb_meta(out_path, meta_table, csv_mode="w")
 
 
 def _get_and_save_vizier_tesseb_meta_of_all(dry_run=False, dry_run_size=1000):
@@ -192,22 +193,60 @@ def _get_live_tesseb_meta_of_tic(tic, also_return_soap=False):
 
 
 def _get_and_save_live_tesseb_meta_of_tic(tic, is_append=True):
-    res = _get_live_tesseb_meta_of_tic(tic)
-
     out_path = "cache/tesseb_meta_from_live.csv"
 
-    if is_append:
-        csv_mode, csv_header = "a", False
-    else:
-        csv_mode, csv_header = "w", True
+    res = _get_live_tesseb_meta_of_tic(tic)
 
-    _do_save_tesseb_meta(out_path, res, csv_mode, csv_header)
+    if is_append:
+        csv_mode = "a"
+    else:
+        csv_mode = "w"
+
+    _do_save_tesseb_meta(out_path, res, csv_mode)
 
     return res
 
 
-def _get_and_save_live_tesseb_meta_of_remaining(dry_run=False):
+def _get_remaining_tics_to_send_to_live_tesseb():
+    def get_max_sector(sectors_str):
+        sectors = sectors_str.split(",")
+        sectors = [int(s) for s in sectors]
+        return max(sectors)
+
+    # the file has the all the TIC ids,
+    # but sectors with PHT eb tagging, that will be used for filtering here
+    df = tic_pht_stats.load_tic_pht_stats_table_from_file()
+    df = df[["tic_id", "sectors"]]
+    df["max_sector"] = [get_max_sector(s) for s in df["sectors"]]
+
+    # remove those TIC max_sector <= 26 ,
+    # because static TESS EB would have covered them anyway, if it is there
+    # (static TESS EB covers sectors 1 - 26)
+    df = df[~(df["max_sector"] <= 26)]
+
+    # remove those already found in static TESS EB
+    df_from_vizier = load_tesseb_meta_table_from_file("cache/tesseb_meta_from_vizier.csv")
+    df = df[~(df["tic_id"].isin(df_from_vizier["TIC"]))]
+
+    # remove those already fetched from liveTESS EB
+    df_from_live = load_tesseb_meta_table_from_file("cache/tesseb_meta_from_live.csv")
+    df = df[~(df["tic_id"].isin(df_from_live["TIC"]))]
+
+    df.reset_index(drop=True, inplace=True)
+
+    return df
+
+
+def _get_and_save_live_tesseb_meta_of_remaining(max_num_ids=None):
+    ids = _get_remaining_tics_to_send_to_live_tesseb()["tic_id"].to_numpy()
+    if max_num_ids is not None:
+        ids = ids[max_num_ids]
+    # OPEN: for a given TIC id, if it is not in live TESS EB,
+    # should I still write a dummy row to cache/tesseb_meta_from_live.csv ?
+    # (as a way to indicate the query has been done, and none is found?)
+
     print("TODO:")
+    return ids  # dummy for now
 
 
 def combine_and_save_tesseb_meta_from_vizier_and_live():
@@ -232,5 +271,5 @@ def load_tesseb_meta_table_from_file(csv_path="../data/tesseb_meta.csv"):
 
 if __name__ == "__main__":
     _get_and_save_vizier_tesseb_meta_of_all(dry_run=False)
-    _get_and_save_live_tesseb_meta_of_remaining(dry_run=False)
+    _get_and_save_live_tesseb_meta_of_remaining()
     combine_and_save_tesseb_meta_from_vizier_and_live()
