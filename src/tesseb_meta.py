@@ -93,11 +93,12 @@ def _get_and_save_vizier_tesseb_meta_of_all(dry_run=False, dry_run_size=1000):
 
 
 # throttle HTTP calls to Live TESS EB
-NUM_LIVE_TESS_EB_CALLS = 5
-TEN_SECONDS = 10
+NUM_LIVE_TESS_EB_CALLS = 1
+TWO_SECONDS = 2
 
-##@sleep_and_retry
-##@limits(calls=NUM_LIVE_TESS_EB_CALLS, period=TEN_SECONDS)
+
+@sleep_and_retry
+@limits(calls=NUM_LIVE_TESS_EB_CALLS, period=TWO_SECONDS)
 def _do_get_live_tesseb_meta_html_of_tic(tic):
     def get_live_tess_eb_url_of_tic(tic_padded):
         tic_padded = str(tic).zfill(10)  # the canonical TIC in TESS EB is zero-padded to 10 digits
@@ -155,7 +156,7 @@ def _get_live_tesseb_meta_of_tic(tic, also_return_soap=False):
         # the text above contains cooltip too, In catalog?<span class="tooltiptext">Is this signal in the EB catalog?</span>
         # so the match by startswith
         if not col_header_actual.startswith(col_header):
-            raise Exception(f"Extraction failed for {col_header}. The column is actually {col_header_actual} for {url}")
+            raise Exception(f"Extraction failed for {col_header}. The column is actually {col_header_actual} for {tic}")
         cell_val = soup.select_one(f"body > table:nth-of-type({table_idx}) tr:nth-of-type(1) > td:nth-of-type({col_idx})").text.strip()
         return cell_val
 
@@ -168,38 +169,37 @@ def _get_live_tesseb_meta_of_tic(tic, also_return_soap=False):
     if "False" == in_catalog_val:  # cases that there is an entry, but is not really in the catalog, e.g., 237280189
         return none_result()
     if "True" != in_catalog_val:
-        raise Exception(f"Unrecognized In Catalog value {in_catalog_val} in TESS DB HTML for {url}")
+        raise Exception(f"Unrecognized In Catalog value {in_catalog_val} in TESS DB for TIC {tic}")
 
     # case the tic is in catalog, scrape the rest of the page
     # the keys are made to be consistent with those from static TESS EB Vizier result
 
-    tic_padded = str(tic).zfill(10)  # the canonical TIC in TESS EB is zero-padded to 10 digits
     result = {}
-    result["TIC"] = tic_padded
+    result["TIC"] = tic  # use the int rather than the non 0-padded string, to be consistent with vizier code path
 
-    result["m_TIC"] = int(extract(2, 1,"Signal"))
-    result["BJD0"] = safe_float(extract(2, 3,"t0 [days]"))
-    result["e_BJD0"] = safe_float(extract(2, 4,"σt0 [days]"))
-    result["Per"] = safe_float(extract(2, 5,"P [days]"))
-    result["e_Per"] = safe_float(extract(2, 6,"σP [days]"))
-    result["Morph"] = safe_float(extract(2, 7,"Morphology"))
+    result["m_TIC"] = int(extract(2, 1, "Signal"))
+    result["BJD0"] = safe_float(extract(2, 3, "t0 [days]"))
+    result["e_BJD0"] = safe_float(extract(2, 4, "σt0 [days]"))
+    result["Per"] = safe_float(extract(2, 5, "P [days]"))
+    result["e_Per"] = safe_float(extract(2, 6, "σP [days]"))
+    result["Morph"] = safe_float(extract(2, 7, "Morphology"))
 
-    result["Wp-pf"] = safe_float(extract(3, 1,"wp,pf"))
-    result["Dp-pf"] = safe_float(extract(3, 3,"dp,pf"))
-    result["Phip-pf"] = safe_float(extract(3, 5,"φp,pf"))
-    result["Ws-pf"] = safe_float(extract(3, 2,"ws,pf"))
-    result["Ds-pf"] = safe_float(extract(3, 4,"ds,pf"))
-    result["Phis-pf"] = safe_float(extract(3, 6,"φs,pf"))
+    result["Wp-pf"] = safe_float(extract(3, 1, "wp,pf"))
+    result["Dp-pf"] = safe_float(extract(3, 3, "dp,pf"))
+    result["Phip-pf"] = safe_float(extract(3, 5, "φp,pf"))
+    result["Ws-pf"] = safe_float(extract(3, 2, "ws,pf"))
+    result["Ds-pf"] = safe_float(extract(3, 4, "ds,pf"))
+    result["Phis-pf"] = safe_float(extract(3, 6, "φs,pf"))
 
-    result["Wp-2g"] = safe_float(extract(3, 6 + 1,"wp,2g"))
-    result["Dp-2g"] = safe_float(extract(3, 6 + 3,"dp,2g"))
-    result["Phip-2g"] = safe_float(extract(3, 6 + 5,"φp,2g"))
-    result["Ws-2g"] = safe_float(extract(3, 6 + 2,"ws,2g"))
-    result["Ds-2g"] = safe_float(extract(3, 6 + 4,"ds,2g"))
-    result["Phis-2g"] = safe_float(extract(3, 6 + 6,"φs,2g"))
+    result["Wp-2g"] = safe_float(extract(3, 6 + 1, "wp,2g"))
+    result["Dp-2g"] = safe_float(extract(3, 6 + 3, "dp,2g"))
+    result["Phip-2g"] = safe_float(extract(3, 6 + 5, "φp,2g"))
+    result["Ws-2g"] = safe_float(extract(3, 6 + 2, "ws,2g"))
+    result["Ds-2g"] = safe_float(extract(3, 6 + 4, "ds,2g"))
+    result["Phis-2g"] = safe_float(extract(3, 6 + 6, "φs,2g"))
 
     result["Sectors"] = str(extract(1, 11, "Sectors"))
-    result["UpDate"] = str(extract(2, 8,"Last modified"))
+    result["UpDate"] = str(extract(2, 8, "Last modified"))
     # TODO: the datetime from Vizier is a string ISO format. Consider to convert it.
     # the datetime text in the cell cannot be parsed by datetime.strptime() easily, e.g., for
     # "Sept. 16, 2021, 5:37 p.m."
@@ -220,6 +220,16 @@ def _get_and_save_live_tesseb_meta_of_tic(tic, is_append=True):
     out_path = "cache/tesseb_meta_from_live.csv"
 
     res = _get_live_tesseb_meta_of_tic(tic)
+
+    if res is None:
+        # if the tic is not found in live TESS EB,
+        # still write a row for the given TIC
+        # TODO: (LATER) the logic here breaks down if the first tic
+        # to be written to a csv file is the not found case.
+        # because the underlying to_csv() logic will create a csv file
+        # with only single TIC column, i.e.,
+        # the headers for the remaining columns would be missing.
+        res = {"TIC": tic}
 
     if is_append:
         csv_mode = "a"
@@ -249,28 +259,33 @@ def _get_remaining_tics_to_send_to_live_tesseb():
     df = df[~(df["max_sector"] <= 26)]
 
     # remove those already found in static TESS EB
+    # note: this code path requires the csv file from static TESS EB has been created.
     df_from_vizier = load_tesseb_meta_table_from_file("cache/tesseb_meta_from_vizier.csv")
     df = df[~(df["tic_id"].isin(df_from_vizier["TIC"]))]
 
-    # remove those already fetched from liveTESS EB
-    df_from_live = load_tesseb_meta_table_from_file("cache/tesseb_meta_from_live.csv")
-    df = df[~(df["tic_id"].isin(df_from_live["TIC"]))]
+    # remove those already fetched from live TESS EB
+    try:
+        df_from_live = load_tesseb_meta_table_from_file("cache/tesseb_meta_from_live.csv")
+        df = df[~(df["tic_id"].isin(df_from_live["TIC"]))]
+    except FileNotFoundError:
+        # no-op if none from live TESS EB has been fetched yet.
+        pass
 
     df.reset_index(drop=True, inplace=True)
 
     return df
 
 
-def _get_and_save_live_tesseb_meta_of_remaining(max_num_ids=None):
+def _get_and_save_live_tesseb_meta_of_remaining(subset_slice=None):
     ids = _get_remaining_tics_to_send_to_live_tesseb()["tic_id"].to_numpy()
-    if max_num_ids is not None:
-        ids = ids[max_num_ids]
-    # OPEN: for a given TIC id, if it is not in live TESS EB,
-    # should I still write a dummy row to cache/tesseb_meta_from_live.csv ?
-    # (as a way to indicate the query has been done, and none is found?)
+    if subset_slice is not None:
+        ids = ids[subset_slice]
 
-    print("TODO:")
-    return ids  # dummy for now
+    # Note: the logic here appends to the existing output csv file
+    # if you want to start from scratch, you need to delete first delete the csv
+    #
+    kwargs_list = [dict(tic=id) for id in ids]
+    return bulk_process(_get_and_save_live_tesseb_meta_of_tic, kwargs_list)
 
 
 def combine_and_save_tesseb_meta_from_vizier_and_live():

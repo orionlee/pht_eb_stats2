@@ -259,5 +259,13 @@ Steps:
 ## TESS EB crossmatch
 
 ```shell
+# for caching of live TESS EB html
+mkdir -p cache/tesseb
+
+# ensure tesseb_meta_from_live.csv is started from scratch (rather than appending to an existing one)
+rm cache/tesseb_meta_from_live.csv
+echo TIC,m_TIC,BJD0,e_BJD0,Per,e_Per,Morph,Wp-pf,Dp-pf,Phip-pf,Ws-pf,Ds-pf,Phis-pf,Wp-2g,Dp-2g,Phip-2g,Ws-2g,Ds-2g,Phis-2g,Sectors,UpDate > cache/tesseb_meta_from_live.csv
+
+# actual processing
 python tesseb_meta.py
 ```
