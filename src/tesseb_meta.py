@@ -21,7 +21,7 @@ from common import bulk_process, has_value, to_csv, load_tic_ids_from_file
 import tic_pht_stats
 
 
-def _add_convenience_columns(result, tesseb_source_type):
+def _add_convenience_columns(result):
     # add convenience columns to TESS EB results
     # for both primary and secondary eclipses,
     # - epoch in BTJD
@@ -38,8 +38,6 @@ def _add_convenience_columns(result, tesseb_source_type):
 
         result[f"Durations-{m}"] = result["Per"] * result[f"Ws-{m}"] * 24  # assuming "Per" is in unit day
         result[f"Durations-{m}"].unit = u.hour
-
-    result["tesseb_source"] = tesseb_source_type
 
 
 def _get_vizier_tesseb_meta_of_tics(tics, **kwargs):
@@ -67,6 +65,8 @@ def _get_vizier_tesseb_meta_of_tics(tics, **kwargs):
     result.remove_columns(["RAJ2000", "DEJ2000", "pmRA", "pmDE", "Tmag"])
     # columns for Vizier UI to generate links to Live TESS EB / Simbad. Irrelevant here
     result.remove_columns(["TESSebs", "Simbad"])
+
+    result["tesseb_source"] = TESS_EB_CATALOG
 
     return result
 
@@ -217,6 +217,8 @@ def _get_live_tesseb_meta_of_tic(tic, also_return_soap=False):
     # "Sep. 16, 2021, 05:37 pm"
     # res = datetime.strptime("Sep. 16, 2021, 05:37 pm", "%b. %d, %Y, %I:%M %p")
 
+    result["tesseb_source"] = "live"
+
     # the table is on par with the the one from Vizier
     result = Table(rows=[result])
 
@@ -346,7 +348,7 @@ def load_tesseb_meta_table_from_file(csv_path="../data/tesseb_meta.csv"):
 
     df = pd.read_csv(
             csv_path,
-            converters={"Sectors": keep_empty_str, "UpDate": keep_empty_str},
+            converters={"Sectors": keep_empty_str, "UpDate": keep_empty_str, "tesseb_source": keep_empty_str},
         )
     return df
 
