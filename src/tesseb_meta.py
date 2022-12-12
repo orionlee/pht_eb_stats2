@@ -95,10 +95,10 @@ def _get_and_save_vizier_tesseb_meta_of_all(dry_run=False, dry_run_size=1000):
 # throttle HTTP calls to Live TESS EB
 NUM_LIVE_TESS_EB_CALLS = 1
 TWO_SECONDS = 2
-
+FIVE_SECONDS = 5
 
 @sleep_and_retry
-@limits(calls=NUM_LIVE_TESS_EB_CALLS, period=TWO_SECONDS)
+@limits(calls=NUM_LIVE_TESS_EB_CALLS, period=FIVE_SECONDS)
 def _do_get_live_tesseb_meta_html_of_tic(tic):
     def get_live_tess_eb_url_of_tic(tic_padded):
         tic_padded = str(tic).zfill(10)  # the canonical TIC in TESS EB is zero-padded to 10 digits
@@ -286,8 +286,10 @@ def _get_remaining_tics_to_send_to_live_tesseb():
 
 def _get_and_save_live_tesseb_meta_of_remaining(subset_slice=None):
     ids = _get_remaining_tics_to_send_to_live_tesseb()["tic_id"].to_numpy()
+    print("Num. of TICs remaining:", len(ids))
     if subset_slice is not None:
         ids = ids[subset_slice]
+        print("Process a subset of ", subset_slice, " , num. of tics:", len(ids))
 
     # Note: the logic here appends to the existing output csv file
     # if you want to start from scratch, you need to delete first delete the csv
