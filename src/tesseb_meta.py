@@ -31,13 +31,8 @@ def _add_convenience_columns(result):
 
     for m in ["pf", "2g"]:
         result[f"Durationp-{m}"] = result["Per"] * result[f"Wp-{m}"] * 24  # assuming "Per" is in unit day
-        result[f"Durationp-{m}"].unit = u.hour
-
         result[f"Epochs-{m}"] = result["BJD0"] + result["Per"] * (result[f"Phis-{m}"] - result[f"Phip-{m}"])
-        result[f"Epochs-{m}"].unit = result["BJD0"].unit
-
         result[f"Durations-{m}"] = result["Per"] * result[f"Ws-{m}"] * 24  # assuming "Per" is in unit day
-        result[f"Durations-{m}"].unit = u.hour
 
 
 def _get_vizier_tesseb_meta_of_tics(tics, **kwargs):
@@ -338,7 +333,7 @@ def combine_and_save_tesseb_meta_from_vizier_and_live():
     return df
 
 
-def load_tesseb_meta_table_from_file(csv_path="../data/tesseb_meta.csv"):
+def load_tesseb_meta_table_from_file(csv_path="../data/tesseb_meta.csv", add_convenience_columns=False):
     def keep_empty_str(in_val):
         """Force pandas to treat empty string as is (rather than the default NaN) when reading csv."""
         if in_val == "":
@@ -350,6 +345,10 @@ def load_tesseb_meta_table_from_file(csv_path="../data/tesseb_meta.csv"):
             csv_path,
             converters={"Sectors": keep_empty_str, "UpDate": keep_empty_str, "tesseb_source": keep_empty_str},
         )
+
+    if add_convenience_columns:
+        _add_convenience_columns(df)
+
     return df
 
 
