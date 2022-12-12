@@ -13,6 +13,8 @@ from bs4 import BeautifulSoup
 from astropy.table import Table
 # END for live TESS EB access
 
+from memoization import cached
+
 from ratelimit import limits, sleep_and_retry
 
 from common import bulk_process, has_value, to_csv, load_tic_ids_from_file
@@ -69,8 +71,8 @@ def _get_vizier_tesseb_meta_of_tics(tics, **kwargs):
     return result
 
 
-def _do_save_tesseb_meta(out_path, meta_table, csv_mode):
-    return to_csv(meta_table, out_path, mode=csv_mode)
+def _do_save_tesseb_meta(out_path, meta_table, csv_mode, fieldnames=None):
+    return to_csv(meta_table, out_path, mode=csv_mode, fieldnames=fieldnames)
 
 
 def _save_vizier_tesseb_meta(meta_table):
@@ -224,27 +226,46 @@ def _get_live_tesseb_meta_of_tic(tic, also_return_soap=False):
         return result
 
 
+
+@cached
+def _get_tesseb_meta_header_names(dummy_arg=True):
+    # The dummy_arg is used to fool memoization
+
+    # The use case for this function is to get
+    # headers for live TESS EB code path ( _get_and_save_live_tesseb_meta_of_tic() below)
+    #
+    # Live TESS EB path is run only after Vizier path.
+    # so we assume Vizier CSV is there
+
+    # we could add nrows=2 to pd.read_csv() call to further save time/memory
+    # since the result is cached, I don't bother the complication for now.
+    df = load_tesseb_meta_table_from_file(csv_path="cache/tesseb_meta_from_vizier.csv")
+    return list(df.columns)
+
+
 def _get_and_save_live_tesseb_meta_of_tic(tic, is_append=True):
     out_path = "cache/tesseb_meta_from_live.csv"
 
     res = _get_live_tesseb_meta_of_tic(tic)
+    fieldnames = None
 
     if res is None:
         # if the tic is not found in live TESS EB,
         # still write a row for the given TIC
-        # TODO: (LATER) the logic here breaks down if the first tic
-        # to be written to a csv file is the not found case.
-        # because the underlying to_csv() logic will create a csv file
-        # with only single TIC column, i.e.,
-        # the headers for the remaining columns would be missing.
+        #
+        # include fieldnames for underlying csv writer,
+        # for the edge case that csv file is empty
+        # (i.e., no header yet)
+        # fieldnames will be used to supply the header
         res = {"TIC": tic}
+        fieldnames = _get_tesseb_meta_header_names()
 
     if is_append:
         csv_mode = "a"
     else:
         csv_mode = "w"
 
-    _do_save_tesseb_meta(out_path, res, csv_mode)
+    _do_save_tesseb_meta(out_path, res, csv_mode, fieldnames=fieldnames)
 
     return res
 
@@ -303,6 +324,8 @@ def combine_and_save_tesseb_meta_from_vizier_and_live():
 
     df_from_vizier = load_tesseb_meta_table_from_file("cache/tesseb_meta_from_vizier.csv")
     df_from_live = load_tesseb_meta_table_from_file("cache/tesseb_meta_from_live.csv")
+    df_from_live = df_from_live[~(pd.isna(df_from_live["BJD0"]))]  # remove rows that indicate no match in live TESS EB
+    # OPEN: convert the updated time in live TESS EB from English-like string to ISO format that is used in Vizier.
 
     df = pd.concat([df_from_vizier, df_from_live])
     df = df.sort_values("TIC", ascending=True)
@@ -314,7 +337,17 @@ def combine_and_save_tesseb_meta_from_vizier_and_live():
 
 
 def load_tesseb_meta_table_from_file(csv_path="../data/tesseb_meta.csv"):
-    df = pd.read_csv(csv_path, dtype={})
+    def keep_empty_str(in_val):
+        """Force pandas to treat empty string as is (rather than the default NaN) when reading csv."""
+        if in_val == "":
+            return ""
+        else:
+            return in_val
+
+    df = pd.read_csv(
+            csv_path,
+            converters={"Sectors": keep_empty_str, "UpDate": keep_empty_str},
+        )
     return df
 
 
