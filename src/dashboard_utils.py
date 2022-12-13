@@ -176,7 +176,11 @@ def get_catalog(type="pht_eb"):
         raise ValueError(f"Unsupported catalog type: {type}")
 
 
-def join_pht_eb_candidate_catalog_with(df_pht, aux_catalogs=[]):
+def join_pht_eb_candidate_catalog_with(aux_catalogs, df_pht=None):
+    """Join PHT EB catalog with a list of others given in ``aux_catalogs``."""
+
+    if df_pht is None:
+        df_pht = get_catalog(type="pht_eb")
 
     for aux_cat in aux_catalogs:
         if aux_cat == "tesseb":
