@@ -162,7 +162,7 @@ def display_summary(min_eb_score):
 
 def get_catalog(type="pht_eb"):
     if type == "pht_eb":
-        df = catalog.load_pht_eb_candidate_catalog_from_file()
+        df = catalog.load_pht_eb_candidate_catalog_from_file(add_convenience_columns=True)
         # Create a TESSEB column that can be used to include links
         # to TESSEB entry of a TIC
         df["TESSEB"] = df["tic_id"]

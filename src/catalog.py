@@ -166,12 +166,27 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000, 
     return df
 
 
-def load_pht_eb_candidate_catalog_from_file(csv_path="../data/catalog_pht_eb_candidates.csv"):
+def _add_convenience_columns(df):
+    def parse_sector_str(sectors_str):
+        sectors = sectors_str.split(",")
+        return [int(s) for s in sectors]
+
+    sectors = [parse_sector_str(s) for s in df["sectors"]]
+    df["num_sectors"] = [len(s) for s in sectors]
+    df["min_sector"] = [min(s) for s in sectors]
+    df["max_sector"] = [max(s) for s in sectors]
+
+
+def load_pht_eb_candidate_catalog_from_file(csv_path="../data/catalog_pht_eb_candidates.csv", add_convenience_columns=False):
     df = pd.read_csv(
         csv_path,
         # force them to be nullable integer type column, to handle N/A cases
         dtype={"VSX_OID": "Int64", "VSX_V": "Int64"},
     )
+
+    if add_convenience_columns:
+        _add_convenience_columns(df)
+
     return df
 
 
