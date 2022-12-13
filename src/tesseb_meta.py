@@ -343,6 +343,7 @@ def load_tesseb_meta_table_from_file(csv_path="../data/tesseb_meta.csv", add_con
 
     df = pd.read_csv(
             csv_path,
+            dtype={"m_TIC": "Int32"},  # nullable Int
             converters={"Sectors": keep_empty_str, "UpDate": keep_empty_str, "tesseb_source": keep_empty_str},
         )
 
