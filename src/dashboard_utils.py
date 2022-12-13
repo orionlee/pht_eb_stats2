@@ -17,6 +17,10 @@ import catalog
 import catalog_stats
 import user_stats
 
+import tesseb_meta
+
+from common import prefix_columns
+
 #
 # Constants to select commonly used column subsets from various catalogs
 #
@@ -170,6 +174,27 @@ def get_catalog(type="pht_eb"):
         return tic_meta.load_tic_meta_table_from_file()[:500][["ID", "Teff", "lum"]]
     else:
         raise ValueError(f"Unsupported catalog type: {type}")
+
+
+def join_pht_eb_candidate_catalog_with(df_pht, aux_catalogs=[]):
+
+    for aux_cat in aux_catalogs:
+        if aux_cat == "tesseb":
+            df_aux = tesseb_meta.load_tesseb_meta_table_from_file(add_convenience_columns=True, one_row_per_tic_only=True)
+
+            # column-merge the tables by tic_id
+            df_pht.set_index("tic_id", drop=False, inplace=True)
+
+            df_aux.set_index("TIC", drop=True, inplace=True)  # drop TIC column, as it will be a duplicate in the result
+            df_aux["Is_In"] = 'T'  # a convenience column to indicate if a TIC has TESS EB record
+            prefix_columns(df_aux, "TESSEB", inplace=True)
+
+            df_pht = pd.concat([df_pht, df_aux], join="outer", axis=1)
+            df_pht["TESSEB_Is_In"] = df_pht["TESSEB_Is_In"].fillna("F")
+        else:
+            raise ValueError(f"Unsupported axillary catalog: {aux_cat}")
+
+    return df_pht
 
 
 _CATALOG_TIC_ID_COLNAME_ = {

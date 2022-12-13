@@ -333,7 +333,7 @@ def combine_and_save_tesseb_meta_from_vizier_and_live():
     return df
 
 
-def load_tesseb_meta_table_from_file(csv_path="../data/tesseb_meta.csv", add_convenience_columns=False):
+def load_tesseb_meta_table_from_file(csv_path="../data/tesseb_meta.csv", add_convenience_columns=False, one_row_per_tic_only=False):
     def keep_empty_str(in_val):
         """Force pandas to treat empty string as is (rather than the default NaN) when reading csv."""
         if in_val == "":
@@ -346,6 +346,14 @@ def load_tesseb_meta_table_from_file(csv_path="../data/tesseb_meta.csv", add_con
             dtype={"m_TIC": "Int32"},  # nullable Int
             converters={"Sectors": keep_empty_str, "UpDate": keep_empty_str, "tesseb_source": keep_empty_str},
         )
+
+    if one_row_per_tic_only:
+        # occasionally, a TIC has multiple entries in TESS DB
+        # distinguished by m_TIC column
+        # For the purpose of cross matching, they cause complication
+        # (cross-match logic assumes TIC is unique)
+        # In practice, these extra entries don't seem to carry much information
+        df = df[df["m_TIC"] == 1]
 
     if add_convenience_columns:
         _add_convenience_columns(df)
