@@ -265,6 +265,22 @@ mkdir -p cache/tesseb
 # ensure tesseb_meta_from_live.csv is started from scratch (rather than appending to an existing one)
 rm cache/tesseb_meta_from_live.csv
 
-# actual processing
+```shell
 python tesseb_meta.py
+```
+
+## Gaia DR3 crossmatch
+
+Outputs:
+
+- `../data/gaia_dr3_meta.py`
+
+Steps:
+
+1. Get Gaia DR3 records using Vizier Crossmatch (`xmatch_and_save_gaia_dr3_meta_of_all_by_tics()`)
+2. Process crossmatch result to find the best match for each TIC (`find_and_save_gaia_dr3_best_xmatch_meta()`)
+
+
+```shell
+python gaia_meta.py
 ```
