@@ -279,7 +279,7 @@ Steps:
 
 1. Get Gaia DR3 records using Vizier Crossmatch (`xmatch_and_save_gaia_dr3_meta_of_all_by_tics()`)
 2. Process crossmatch result to find the best match for each TIC (`find_and_save_gaia_dr3_best_xmatch_meta()`)
-
+3. Get Gaia DR3 Variable Classifications when applicable (`_get_and_save_gaia_dr3_var_meta_of_all()`)
 
 ```shell
 python gaia_meta.py

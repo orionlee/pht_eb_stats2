@@ -6,6 +6,7 @@ import pandas as pd
 
 from astropy import units as u
 from astropy.utils.exceptions import AstropyWarning
+from astroquery.vizier import Vizier
 
 from common import insert, move, to_csv, AbstractTypeMapAccessor
 import xmatch_util
@@ -191,9 +192,75 @@ def load_gaia_dr3_meta_table_from_file(csv_path="../data/gaia_dr3_meta.csv"):
     return _load_gaia_dr3_xmatch_table_from_file(csv_path)
 
 
+#
+# Gaia DR# Variable crossmatch
+#
+
+def _get_gaia_dr3_var_meta_of_gaia_ids(gaia_ids, **kwargs):
+    # Vizier requires a list of TIC in string (the leading zero is not needed, however)
+    gaia_ids = [str(t) for t in gaia_ids]
+
+    GAIA_DR3_VAR_RESULT_CATALOG = "I/358/vclassre" # only the classification result, but not any specifics
+    columns = ["*", "ClassSc", ]  # include score of the best class
+    vizier = Vizier(catalog=GAIA_DR3_VAR_RESULT_CATALOG, columns=columns)
+    vizier.ROW_LIMIT = -1  # it is not necessary in practice, but to be on the safe side.
+    vizier.TIMEOUT = 60 * 30  # elapsed time for 1000 ids is about 11 min.
+    result_list = vizier.query_constraints(Source=gaia_ids, **kwargs)
+
+    if len(result_list) < 1:
+        return None
+    result = result_list[0]  # there is only 1 table in the catalog
+    return result
+
+
+def _save_gaia_dr3_var_meta(meta_table, csv_mode="w"):
+    out_path = "../data/gaia_dr3_var_meta.csv"
+    return to_csv(meta_table, out_path, mode=csv_mode)
+
+
+def _get_and_save_gaia_dr3_var_meta_of_all(dry_run=False, dry_run_size=1000, chunk_size=1000):
+
+    # get the Gaia DR3 Ids, use only those that are known to be variable
+    df = load_gaia_dr3_meta_table_from_file()[["Source", "VarFlag"]]
+    df = df[df["VarFlag"] == "VARIABLE"]
+    ids = df["Source"].to_numpy()
+
+    # Note: the approach is not really efficient
+    # - use query_constraints() on Gaia DR3 variable to bulk fetch is quite slow
+    # - 100 IDs took about 1.5 minute
+    # - 1000 IDs took about 12 minutes
+    # If we need to do it repeatedly, XMatch might be a better choice.
+
+    if dry_run and dry_run_size is not None:
+        ids = ids[:dry_run_size]
+
+    num_chunks = int(np.ceil(len(ids) / chunk_size))
+
+    num_fetched = 0
+    for idx in range(0, num_chunks):
+        ids_chunk = ids[idx * chunk_size:(idx + 1) * chunk_size]
+        print(f"DEBUG  chunk {idx} ; num. ids to send to Vizier: {len(ids_chunk)}")
+
+        res = _get_gaia_dr3_var_meta_of_gaia_ids(ids_chunk)
+        num_fetched += len(res)
+
+        if not dry_run:
+            csv_mode = "w" if idx == 0 else "a"
+            _save_gaia_dr3_var_meta(res, csv_mode=csv_mode)
+
+    return num_fetched
+
+
+def load_gaia_dr3_var_meta_table_from_file(csv_path="../data/gaia_dr3_var_meta.csv"):
+    # its structure and quirks are the same as main Gaia DR3 (mainly on SolID and Source)
+    return _load_gaia_dr3_xmatch_table_from_file(csv_path)
+
 
 if __name__ == "__main__":
     # Get crossmatch result from Vizier / Gaia DR3
     xmatch_and_save_gaia_dr3_meta_of_all_by_tics()
     # Process the result to find the best matches.
     find_and_save_gaia_dr3_best_xmatch_meta(min_score_to_include=0)
+
+    # Fetch Gaia DR3 Variable classification when applicable
+    _get_and_save_gaia_dr3_var_meta_of_all()
