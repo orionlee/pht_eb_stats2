@@ -28,6 +28,9 @@ def xmatch_and_save_gaia_dr3_meta_of_all_by_tics(dry_run=False, dry_run_size=100
         # Empirically, the run for the ~12K of TICs took 11 minutes
         # it should have timed out (the default is 300 seconds), but it did not.
         # A workaround is to have caller set it with `XMatch.TIMEOUT` directly
+        #
+        # Issue: there are some rare cases that multiple TICs matched to the same Gaia ID
+        # in the dataset (Sectors 1 - 39), 12507 TICs got mapped to 12485 Gaia IDs
         return xmatch_util.xmatch_and_save_vizier_meta_of_all_by_tics(
             "I/355/gaiadr3",
             out_path=out_path,
@@ -186,10 +189,27 @@ def find_and_save_gaia_dr3_best_xmatch_meta(dry_run=False, dry_run_size=1000, mi
     )
 
 
-def load_gaia_dr3_meta_table_from_file(csv_path="../data/gaia_dr3_meta.csv"):
+def load_gaia_dr3_meta_table_from_file(csv_path="../data/gaia_dr3_meta.csv", add_variable_meta=False):
     # the final ASAS-SN meta table is so similar to the interim crossmatch table
     # that the logic can be reused
-    return _load_gaia_dr3_xmatch_table_from_file(csv_path)
+    df = _load_gaia_dr3_xmatch_table_from_file(csv_path)
+    if (add_variable_meta):
+        df_var = load_gaia_dr3_var_meta_table_from_file()
+        df = _join_gaia_meta_with_var_meta(df, df_var)
+    return df
+
+
+def _join_gaia_meta_with_var_meta(df_main, df_var):
+    # left outer join the 2 tables by Source column
+    # column-merge the tables by Gaia ID (Source)
+    # The relationship is many_to_one
+    # because multiple TICs mapped to single Gaia ID
+
+    #  retain useful columns only, and ignore columns like RA, DEC, etc.
+    df_var = df_var[["Source", "Classifier", "Class", "ClassSc"]]
+    df = pd.merge(df_main, df_var, how="left", on="Source", validate="many_to_one")
+
+    return df
 
 
 #
@@ -247,6 +267,16 @@ def _get_and_save_gaia_dr3_var_meta_of_all(dry_run=False, dry_run_size=1000, chu
         if not dry_run:
             csv_mode = "w" if idx == 0 else "a"
             _save_gaia_dr3_var_meta(res, csv_mode=csv_mode)
+
+    # ugly workaround:
+    # the input Gaia IDs are not unique (upstream issue in Gaia Crossmatch).
+    # - we dedupe here after getting the entire data set
+    # - I could have deduped the input IDs, but it'd mess up the vizier result cache locally
+    # - ultimately, the source of duplicates in TIC - Gaia crossmatch should be fixed instead.
+    if not dry_run:
+        df = load_gaia_dr3_var_meta_table_from_file()
+        df.drop_duplicates(subset="Source", inplace=True, ignore_index=True)
+        _save_gaia_dr3_var_meta(df, csv_mode="w")
 
     return num_fetched
 
