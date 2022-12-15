@@ -284,3 +284,9 @@ Steps:
 ```shell
 python gaia_meta.py
 ```
+
+Known issue:
+
+- there are some rare cases that multiple TICs matched to the same Gaia ID.
+  - in the dataset (Sectors 1 - 39), 12507 TICs got mapped to 12485 Gaia IDs
+
