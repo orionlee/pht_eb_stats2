@@ -17,6 +17,7 @@ from collections import OrderedDict
 
 import astropy
 from astropy.io import fits
+from astropy import coordinates as coord
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
 from astropy.time import Time
@@ -162,6 +163,35 @@ def of_tic(lcf_coll, tic):
     """
     filtered = [lcf for lcf in lcf_coll if lcf.meta.get("TICID", None) == tic]
     return lk.LightCurveCollection(filtered)
+
+
+def select(lcf_coll_or_sr, filter_func):
+    """Filter the given LightCurveCollection or SearchResult with the filter_func."""
+    return type(lcf_coll_or_sr)([obj for obj in lcf_coll_or_sr if filter_func(obj)])
+
+
+def exclude_range(lc, start, end):
+    """Exclude the specified range of time from the given lightcurve."""
+    tmask = (lc.time.value >= start) & (lc.time.value < end)
+    return lc[~tmask]
+
+
+def get_obs_date_range(lcf_coll):
+    """Return the observation date span and the number of days with observation."""
+    # the code assumes the time are in all in BTJD, or other consistent format in days
+    if isinstance(lcf_coll, lk.LightCurve):
+        lcf_coll = lk.LightCurveCollection([lcf_coll])
+
+    # to support folded lightcurve
+    time_colname = "time_original" if "time_original" in lcf_coll[0].colnames else "time"
+
+    t_start = lcf_coll[0][time_colname].min().value
+    t_end = lcf_coll[-1][time_colname].max().value
+
+    obs_span = t_end - t_start
+    obs_actual = len(set(np.concatenate([lc[time_colname].value.astype("int") for lc in lcf_coll])))
+
+    return obs_span, obs_actual
 
 
 def estimate_object_radius_in_r_jupiter(lc, depth):
@@ -672,7 +702,7 @@ class TransitTimeSpecList(list):
         return Table(data, names=columns)
 
 
-def stitch(lcf_coll, **kwargs):
+def stitch(lcf_coll, ignore_incompatible_column_warning=False, **kwargs):
     """Wrapper over native stitch(), and tweak the metadata so that it behaves like a typical single-sector lightcurve."""
 
     def update_meta_if_exists_in(lc_src, keys):
@@ -685,7 +715,17 @@ def stitch(lcf_coll, **kwargs):
         if lc_stitched.meta.get(key, None) is not None:
             del lc_stitched.meta[key]
 
-    lc_stitched = lcf_coll.stitch(**kwargs)
+    if ignore_incompatible_column_warning:
+        with warnings.catch_warnings():
+            # suppress useless warning. Use cases: stitching QLP lightcurves with SPOC lightcurves (sap_flux is incompatible)
+            warnings.filterwarnings(
+                "ignore",
+                category=lk.LightkurveWarning,
+                message="The following columns will be excluded from stitching because the column types are incompatible:.*",
+            )
+            lc_stitched = lcf_coll.stitch(**kwargs)
+    else:
+        lc_stitched = lcf_coll.stitch(**kwargs)
 
     # now update the metadata
 
@@ -774,58 +814,6 @@ def _lksl_statistics(ts):
 
 def lksl_statistics(lc, column="flux"):
     return _lksl_statistics(lc[column].value)
-
-
-def iterative_sine_fit(
-    lc,
-    num_iterations,
-    mask_for_model=None,
-    pg_kwargs=dict(),
-    plot_kwargs=dict(figsize=(30, 5), s=4, alpha=0.5),
-    plot_diagnostics=False,
-):
-    """Remove sine-wave like periodic signals using iterative sine fitting
-
-    Based on:
-    https://docs.lightkurve.org/tutorials/3-science-examples/periodograms-measuring-a-rotation-period.html#5.-Removing-Periodic-Signals-Using-Iterative-Sine-Fitting
-    """
-    import tic_plot as tplt  # for plot
-
-    lc = lc.normalize()  # use normalized as the base so that it can compute with the model lcs easily later on
-    lc = lc["time", "flux", "flux_err"]  # reduce the input size to iterative_sine_fit
-
-    if plot_diagnostics:
-        axs = tplt.plot_skip_data_gap(lc, **plot_kwargs)
-        axs[0].set_title("Input LC")
-
-    pgs, lc_models, lc_residuals = [], [], []
-    lc_in = lc
-    for i in range(1, num_iterations + 1):
-        lc_4_pg = lc_in
-        if mask_for_model is not None:  # the optional mask is to exclude cadence that could skew the periodogram calculation
-            lc_4_pg = lc_in[~mask_for_model]
-        pg = lc_4_pg.to_periodogram(method="lombscargle", **pg_kwargs)
-
-        lc_model = pg.model(lc_in.time, pg.frequency_at_max_power)
-        lc_model.meta["LS_MODEL_ITERATION"] = i
-        lc_residual = lc_in.copy()
-        lc_residual.flux = lc_in.flux / lc_model.flux
-        lc_residual.meta["LS_RESIDUAL_ITERATION"] = i
-
-        if plot_diagnostics:
-            axs = tplt.plot_skip_data_gap(lc_residual, label=f"lc_residual{i}", **plot_kwargs)
-            axs[0].set_title(f"Iteration {i}; signals removed: period={pg.period_at_max_power}, power={pg.max_power}")
-        #             axs = tplt.plot_skip_data_gap(lc_model, label=f"lc_model{i}", **plot_kwargs);
-
-        # accumulate output
-        pgs.append(pg)
-        lc_models.append(lc_model)
-        lc_residuals.append(lc_residual)
-
-        # Send the residual to the next iteration
-        lc_in = lc_residual
-
-    return dict(pgs=pg, lc_models=lc_models, lc_residuals=lc_residuals, lc_input=lc)
 
 
 #
@@ -936,6 +924,17 @@ def estimate_transit_duration_for_circular_orbit(period, rho, b):
     ).to(u.hour)
 
 
+def calc_flux_at_minimum(lc_f: lk.FoldedLightCurve, flux_window_min=10):
+    """Return the flux at minimum by calculating the median of the flux at minimum"""
+
+    flux_window = flux_window_min / 60 / 24  # in days
+    lc_trunc = lc_f.truncate(-flux_window / 2, flux_window / 2).remove_nans()
+    flux_min = np.median(lc_trunc.flux)
+    flux_min_sample_size = len(lc_trunc)
+
+    return flux_min, flux_min_sample_size
+
+
 def select_flux(lc, flux_cols):
     """Return a Lightcurve object with the named column as the flux column.
 
@@ -960,6 +959,49 @@ def select_flux(lc, flux_cols):
         if res is not None:
             return res
     raise ValueError(f"'column {flux_cols}' not found")
+
+
+def to_flux_in_mag_by_normalization(lc, base_mag_header_name="TESSMAG"):
+    """Convert the a lightcurve's flux to magnitude via a normalized lightcurve with a known average / base magnitude."""
+    if lc.flux.unit is u.mag:
+        return lc
+
+    lc = lc.copy()
+
+    base_mag = lc.meta.get(base_mag_header_name)
+    if base_mag is None:
+        raise ValueError(f"The given lightcurve does not have base magnitude in {base_mag_header_name} header ")
+
+    lc_norm = lc.normalize()
+    flux_mag = (base_mag + 2.5 * np.log10(1 / lc_norm.flux)) * u.mag
+    flux_err_mag = (base_mag + 2.5 * np.log10(1 / lc_norm.flux_err)) * u.mag
+    lc.flux = flux_mag
+    lc.flux_err = flux_err_mag
+    lc.meta["NORMALIZED"] = False
+    return lc
+
+
+def ratio_to_mag(val_in_ratio):
+    """Convert normalized transit depth to magnitude."""
+    return 2.5 * np.log10(1 / (1 - val_in_ratio))
+
+
+def to_hjd_utc(t_obj: Time, sky_coord: SkyCoord) -> Time:
+    # Based on astropy documentation
+    # https://docs.astropy.org/en/stable/time/#barycentric-and-heliocentric-light-travel-time-corrections
+
+    t_jd_tdb = t_obj.copy("jd").tdb
+
+    # 1. convert the given time in JD TDB to local time UTC
+    greenwich = coord.EarthLocation.of_site("greenwich")
+    ltt_bary = t_jd_tdb.light_travel_time(sky_coord, location=greenwich, kind="barycentric")
+    t_local_jd_utc = (t_jd_tdb - ltt_bary).utc
+
+    # 2. convert local time UTC to HJD UTC
+    ltt_helio = t_local_jd_utc.light_travel_time(sky_coord, location=greenwich, kind="heliocentric")
+    t_hjd_utc = t_local_jd_utc + ltt_helio
+
+    return t_hjd_utc
 
 
 HAS_BOTTLENECK = False
