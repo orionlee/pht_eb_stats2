@@ -67,6 +67,8 @@ BIBS = SimpleNamespace(
     QLP_B="2020RNAAS...4..204H",
     TCE_N="TESS Threshold Crossing Event (online data)",
     # links to TCE is specific to one
+    TIC_N="Stassun, K. G.; et al., 2019, The Revised TESS Input Catalog and Candidate Target List",  # the paper describing TIC v8, the subsequent paper for v8.1/8.2 focuses mainly on the changes and is not as helpful
+    TIC_B="2019AJ....158..138S",
     ASAS_SN_N="Kochanek, C. S.; et al., 2017, The All-Sky Automated Survey for Supernovae (ASAS-SN) Light Curve Server v1.0",
     ASAS_SN_B="2017PASP..129j4502K",
     GAIA_DR3_N="Gaia collaboration; et al., 2022, Gaia Data Release 3 (Gaia DR3) Part 1 Main source",
