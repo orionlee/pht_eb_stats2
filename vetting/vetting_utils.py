@@ -2,6 +2,7 @@
 # Misc. helper for EB Vetting notebooks
 #
 
+from types import SimpleNamespace
 from urllib.parse import quote_plus
 from IPython.display import display, Markdown
 import pandas as pd
@@ -9,6 +10,10 @@ import pandas as pd
 
 def display_no_index(df):
     return display(df.style.hide(axis="index"))
+
+
+def get_tesseb_live_url_of_tic(tic):
+    return f"http://tessebs.villanova.edu/{str(tic).zfill(10)}"
 
 
 def display_all_meta_highlights(all_meta):
@@ -38,8 +43,8 @@ def display_all_meta_highlights(all_meta):
     display(Markdown(asas_sn_header))
     display_no_index(all_meta.asas_sn[["ASASSN-V",  "Vmag", "Type", "Prob", "Per"]])
 
-
-    tesseb_header = f"### TESS EB&emsp;[live](http://tessebs.villanova.edu/{str(tic).zfill(10)})"
+    # for TESS EB, link to live TESS EB is always shown, in case new entries have been added.
+    tesseb_header = f"### TESS EB&emsp;[live]({get_tesseb_live_url_of_tic(tic)})"
     display(Markdown(tesseb_header))
     display_no_index(all_meta.tesseb[["TIC", "Per", "Epochp", "Epochs-pf", "Morph", "Sectors",]])
 
@@ -53,3 +58,21 @@ def display_all_meta_highlights(all_meta):
     display(Markdown(gaia_header))
     display_no_index(all_meta.gaia[["Source", "RAdeg", "DEdeg", "Gmag",  "BP-RP", "Teff", "RUWE", "sepsi", "Dup", "Class", "ClassSc",]])
 
+
+# comonly used references
+BIBS = SimpleNamespace(
+    TESS_N="Ricker, G. R.; et al., 2014, Transiting Exoplanet Survey Satellite (TESS)",
+    TESS_B="2014SPIE.9143E..20R",
+    QLP_N="Huang, C. X.; et al., 2020, Photometry of 10 Million Stars from the First Two Years of TESS Full Frame Images: Part I",
+    QLP_B="2020RNAAS...4..204H",
+    TCE_N="TESS Threshold Crossing Event (online data)",
+    # links to TCE is specific to one
+    ASAS_SN_N="Kochanek, C. S.; et al., 2017, The All-Sky Automated Survey for Supernovae (ASAS-SN) Light Curve Server v1.0",
+    ASAS_SN_B="2017PASP..129j4502K",
+    GAIA_DR3_N="Gaia collaboration; et al., 2022, Gaia Data Release 3 (Gaia DR3) Part 1 Main source",
+    GAIA_DR3_B="2022yCat.1355....0G",
+    GAIA_DR3_VAR_N="Gaia collaboration; et al., 2022, Gaia Data Release 3 (Gaia DR3) Part 4 Variability",
+    GAIA_DR3_VAR_B="2022yCat.1358....0G",
+    TESSEB_N="Prša, A.; et al., 2022, TESS Eclipsing Binary Stars. I. Short-cadence Observations of 4584 Eclipsing Binaries in Sectors 1-26",
+    TESSEB_B="2022ApJS..258...16P",
+)
