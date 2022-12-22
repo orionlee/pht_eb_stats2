@@ -66,7 +66,7 @@ BIBS = SimpleNamespace(
     QLP_N="Huang, C. X.; et al., 2020, Photometry of 10 Million Stars from the First Two Years of TESS Full Frame Images: Part I",
     QLP_B="2020RNAAS...4..204H",
     TCE_N="TESS Threshold Crossing Event (online data)",
-    # links to TCE is specific to one
+    # links to TCE is case specific
     TIC_N="Stassun, K. G.; et al., 2019, The Revised TESS Input Catalog and Candidate Target List",  # the paper describing TIC v8, the subsequent paper for v8.1/8.2 focuses mainly on the changes and is not as helpful
     TIC_B="2019AJ....158..138S",
     ASAS_SN_N="Kochanek, C. S.; et al., 2017, The All-Sky Automated Survey for Supernovae (ASAS-SN) Light Curve Server v1.0",
@@ -77,4 +77,6 @@ BIBS = SimpleNamespace(
     GAIA_DR3_VAR_B="2022yCat.1358....0G",
     TESSEB_N="Prša, A.; et al., 2022, TESS Eclipsing Binary Stars. I. Short-cadence Observations of 4584 Eclipsing Binaries in Sectors 1-26",
     TESSEB_B="2022ApJS..258...16P",
+    TESSEB_LIVE_N="TESS Eclipsing Binary Catalogue (online data)",
+    # links to live TESS EB is case specific
 )
