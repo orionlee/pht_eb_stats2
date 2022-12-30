@@ -20,7 +20,7 @@ import user_stats
 import gaia_meta
 import tesseb_meta
 
-from common import prefix_columns
+from common import prefix_columns, left_outer_join_by_column_merge
 
 #
 # Constants to select commonly used column subsets from various catalogs
@@ -186,28 +186,18 @@ def join_pht_eb_candidate_catalog_with(aux_catalogs, df_pht=None):
     for aux_cat in aux_catalogs:
         if aux_cat == "tesseb":
             df_aux = tesseb_meta.load_tesseb_meta_table_from_file(add_convenience_columns=True, one_row_per_tic_only=True)
-
-            # column-merge the tables by tic_id
-            df_pht.set_index("tic_id", drop=False, inplace=True)
-
-            df_aux.set_index("TIC", drop=True, inplace=True)  # drop TIC column, as it will be a duplicate in the result
-            df_aux["Is_In"] = 'T'  # a convenience column to indicate if a TIC has TESS EB record
-            prefix_columns(df_aux, "TESSEB", inplace=True)
-
-            df_pht = pd.concat([df_pht, df_aux], join="outer", axis=1)
-            df_pht["TESSEB_Is_In"] = df_pht["TESSEB_Is_In"].fillna("F")
+            df_pht = left_outer_join_by_column_merge(
+                df_pht, df_aux,
+                join_col_main="tic_id", join_col_aux="TIC",
+                prefix_aux="TESSEB"
+                )
         elif aux_cat == "gaia":
             df_aux = gaia_meta.load_gaia_dr3_meta_table_from_file(add_variable_meta=True)
-
-            # column-merge the tables by tic_id
-            df_pht.set_index("tic_id", drop=False, inplace=True)
-
-            df_aux.set_index("TIC_ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
-            df_aux["Is_In"] = 'T'  # a convenience column to indicate if a TIC has GAia record
-            prefix_columns(df_aux, "GAIA", inplace=True)
-
-            df_pht = pd.concat([df_pht, df_aux], join="outer", axis=1)
-            df_pht["GAIA_Is_In"] = df_pht["GAIA_Is_In"].fillna("F")
+            df_pht = left_outer_join_by_column_merge(
+                df_pht, df_aux,
+                join_col_main="tic_id", join_col_aux="TIC_ID",
+                prefix_aux="GAIA"
+                )
         else:
             raise ValueError(f"Unsupported axillary catalog: {aux_cat}")
 

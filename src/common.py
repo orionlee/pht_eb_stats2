@@ -173,6 +173,30 @@ def as_nullable_int(df: pd.DataFrame, columns: Sequence):
     return df
 
 
+def left_outer_join_by_column_merge(df_main, df_aux, join_col_main, join_col_aux, prefix_aux, add_is_in_col=True):
+    """Left outer join of 2 dataframes by the way of column merge.
+       It is akin to horizontal stacking, except the right (auxillary) dataframe
+       may not have records for a row in the left (main) dataframe; i.e.,
+       the relationship of the 2 dataframes must be 1: (0 or 1).
+
+       Typical usage is to join the main PHT EB Catalog with some auxillary data (from other catalogs) by TIC.
+       """
+    # column-merge the tables, typically by TIC
+    df_main.set_index(join_col_main, drop=False, inplace=True)
+
+    # drop the join column from aux, as it will be a duplicate in the result
+    df_aux.set_index(join_col_aux, drop=True, inplace=True)
+    if add_is_in_col:  # a convenience column to indicate if an entry has record in df_aux
+        df_aux["Is_In"] = 'T'
+    prefix_columns(df_aux, prefix_aux, inplace=True)
+
+    df_main = pd.concat([df_main, df_aux], join="outer", axis=1)
+    if add_is_in_col:
+        df_main[f"{prefix_aux}_Is_In"] = df_main[f"{prefix_aux}_Is_In"].fillna("F")
+
+    return df_main
+
+
 #
 # Helpers to map a catalog's type(s) to Is_EB
 #
