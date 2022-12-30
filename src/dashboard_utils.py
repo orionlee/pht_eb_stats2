@@ -17,6 +17,7 @@ import catalog
 import catalog_stats
 import user_stats
 
+import gaia_meta
 import tesseb_meta
 
 from common import prefix_columns
@@ -195,6 +196,18 @@ def join_pht_eb_candidate_catalog_with(aux_catalogs, df_pht=None):
 
             df_pht = pd.concat([df_pht, df_aux], join="outer", axis=1)
             df_pht["TESSEB_Is_In"] = df_pht["TESSEB_Is_In"].fillna("F")
+        elif aux_cat == "gaia":
+            df_aux = gaia_meta.load_gaia_dr3_meta_table_from_file(add_variable_meta=True)
+
+            # column-merge the tables by tic_id
+            df_pht.set_index("tic_id", drop=False, inplace=True)
+
+            df_aux.set_index("TIC_ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
+            df_aux["Is_In"] = 'T'  # a convenience column to indicate if a TIC has GAia record
+            prefix_columns(df_aux, "GAIA", inplace=True)
+
+            df_pht = pd.concat([df_pht, df_aux], join="outer", axis=1)
+            df_pht["GAIA_Is_In"] = df_pht["GAIA_Is_In"].fillna("F")
         else:
             raise ValueError(f"Unsupported axillary catalog: {aux_cat}")
 
