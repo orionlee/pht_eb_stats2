@@ -5,6 +5,7 @@ import warnings
 from types import SimpleNamespace
 from memoization import cached
 
+from astropy import units as u
 import numpy as np
 
 from lightkurve.periodogram import BoxLeastSquaresPeriodogram
@@ -18,7 +19,11 @@ from numbers import Number
 def plot_pg_n_mark_max(pg, ax=None, max_period_factor=None):
     ax = pg.plot(ax=ax, view="period")
     ax.axvline(pg.period_at_max_power.value, c="blue", alpha=0.4)
-    max_text = f"Power: {pg.max_power:.2f}, Period: {pg.period_at_max_power:.4f}"
+    period_val_text = f"{pg.period_at_max_power:.4f}"
+    if pg.period_at_max_power < 0.2 * u.day and pg.period_at_max_power.unit == u.day:
+        # for short period in days, also show the period in hours
+        period_val_text += f" ({pg.period_at_max_power.to(u.hour):.4f})"
+    max_text = f"Power: {pg.max_power:.2f}, Period: {period_val_text}"
     if hasattr(pg, "depth_at_max_power"):  # to accommodate LombScarglePeriodogram
         max_text += f", Depth: {pg.depth_at_max_power:.6f}"
 
@@ -41,7 +46,7 @@ def _model(pg, lc):
         return pg.model(lc.time, pg.frequency_at_max_power)
 
 
-def plot_lc_with_model(lc, pg, plot_lc=True, plot_model=True, plot_folded_model=True):
+def plot_lc_with_model(lc, pg, plot_lc=True, plot_model=True, plot_folded_model=True, also_return_lcs=False):
     lc_model = _model(pg, lc)
     ax1 = None
     if plot_lc:
@@ -71,7 +76,11 @@ def plot_lc_with_model(lc, pg, plot_lc=True, plot_model=True, plot_folded_model=
             # zoom in for BLS model:
             ax_f.set_xlim(-pg.duration_at_max_power.value, pg.duration_at_max_power.value)
 
-    return ax1, ax2, ax_f
+    if not also_return_lcs:
+        return ax1, ax2, ax_f
+    else:
+        lcs = SimpleNamespace(lc=lc, lc_f=lc_f, lc_model=lc_model, lc_model_f=lc_model_f)
+        return [ax1, ax2, ax_f], lcs
 
 
 def errorbar_transit_depth(pg):

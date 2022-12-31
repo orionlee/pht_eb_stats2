@@ -289,6 +289,10 @@ def plot_n_annotate_lcf(
         _cache_plot_n_annotate_lcf["normalize"] = normalize
         _cache_plot_n_annotate_lcf["lc"] = lc
 
+    # create a copy that will be modified, to avoid unintentional side effects,
+    # in case caller uses the same instance repeatedly.
+    plot_kwargs = plot_kwargs.copy()
+
     if xmin is None and t_start is not None:
         xmin = t_start - 0.5
     if xmax is None and t_end is not None:
@@ -2168,7 +2172,9 @@ def plot_in_out_diff(tpf, epoch, transit_half_duration=0.25, oot_outer_relative=
         ax.legend(loc="upper right", fontsize="small")
 
 
-def plot_pixel_level_LC(tpf, epoch, transit_half_duration=0.25, oot_outer_relative=0.5, oot_inner_relative=0.3):
+def plot_pixel_level_LC(
+    tpf, epoch, aperture_mask=None, transit_half_duration=0.25, oot_outer_relative=0.5, oot_inner_relative=0.3
+):
     """
     Plot the LC for each pixel around the time of the transit like event.
     Each LC is fitted with a 3 order polynomial in order to flatten.
@@ -2290,6 +2296,12 @@ def plot_pixel_level_LC(tpf, epoch, transit_half_duration=0.25, oot_outer_relati
                 ax[ii, j].set_xticklabels([])
                 ax[ii, j].set_xticks([])
                 ax[ii, j].set_yticks([])
+
+                # highlight aperture pixels if specified
+                if aperture_mask is not None and aperture_mask[ii, j]:
+                    for pos in ["top", "bottom", "right", "left"]:
+                        ax[ii, j].spines[pos].set_edgecolor("red")
+                        ax[ii, j].spines[pos].set_linewidth(2)
 
         # ------------------
 
