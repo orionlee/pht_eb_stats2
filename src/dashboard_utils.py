@@ -45,7 +45,7 @@ CAT_COLS_COMMON = [
     "ASASSN_URL",
     "ASASSN_Type",
     "ASASSN_Per",
-    "TESSEB",
+    "TESSEB_URL",
 ]
 
 # For TIC Meta
@@ -164,9 +164,9 @@ def display_summary(min_eb_score):
 def get_catalog(type="pht_eb"):
     if type == "pht_eb":
         df = catalog.load_pht_eb_candidate_catalog_from_file(add_convenience_columns=True)
-        # Create a TESSEB column that can be used to include links
+        # Create a TESSEB_URL column that can be used to include links
         # to TESSEB entry of a TIC
-        df["TESSEB"] = df["tic_id"]
+        df["TESSEB_URL"] = df["tic_id"]
         return df
     elif type == "tic_meta":
         return tic_meta.load_tic_meta_table_from_file()
@@ -318,7 +318,7 @@ def style(df_catalog, show_thumbnail=False):
         "SIMBAD_MAIN_ID": make_simbad_id_clickable,
         "ASASSN_URL": make_asas_sn_url_clickable,
         "VSX_OID": make_vsx_id_clickable,
-        "TESSEB": make_tesseb_link,
+        "TESSEB_URL": make_tesseb_link,
     }
 
     if show_thumbnail:
