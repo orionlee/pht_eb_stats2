@@ -201,6 +201,13 @@ def join_pht_eb_candidate_catalog_with(aux_catalogs, df_pht=None):
             # Misc. type fixing after join
             as_nullable_int(df_pht, ["GAIA_Source", "GAIA_SolID"])  # some cells is NA, so convert it to nullable integer
 
+            # placeholders for UI to construct links to GAIA
+            # Note: we use the column GAIA_DR3Name as the basis, rather than GAIA_Source, because empirically,
+            # - the Source in xmatch result is sometimes not reliable (and points to invalid ID)
+            # - the one in DR3Name seems to be more reliable.
+            df_pht["GAIA_DR3_URL"] = df_pht["GAIA_DR3Name"].str.replace("Gaia DR3 ", "")
+            df_pht["GAIA_DR3_VAR_URL"] = df_pht["GAIA_DR3Name"].str.replace("Gaia DR3 ", "")
+            df_pht.loc[pd.isna(df_pht["GAIA_Class"]), "GAIA_DR3_VAR_URL"] = np.nan  # only those with variable class gets URL
         else:
             raise ValueError(f"Unsupported axillary catalog: {aux_cat}")
 
@@ -298,6 +305,14 @@ def style(df_catalog, show_thumbnail=False):
     def make_asas_sn_url_clickable(val):
         return make_clickable(val, "", "_asas_sn", link_text_func=lambda val: "details")
 
+    def make_gaia_source_clickable_to_gaia_dr3(val):
+        gaia_dr3_url_base = "https://vizier.cds.unistra.fr/viz-bin/VizieR-4?-ref=VIZ63b1ee071c8561&-to=-4b&-from=-3&-this=-4&%2F%2Fsource=%2BI%2F355%2Fgaiadr3%2BI%2F355%2Fparamp&%2F%2Ftables=I%2F355%2Fgaiadr3&%2F%2Ftables=I%2F355%2Fparamp&-out.max=50&%2F%2FCDSportal=http%3A%2F%2Fcdsportal.u-strasbg.fr%2FStoreVizierData.html&-out.form=HTML+Table&-out.add=_r&%2F%2Foutaddvalue=default&-sort=_r&-order=I&-oc.form=sexa&-out.src=I%2F355%2Fgaiadr3%2CI%2F355%2Fparamp&-nav=cat%3AI%2F355%26tab%3A%7BI%2F355%2Fgaiadr3%7D%26tab%3A%7BI%2F355%2Fparamp%7D%26key%3Asource%3D%2BI%2F355%2Fgaiadr3%2BI%2F355%2Fparamp%26HTTPPRM%3A&-c=&-c.eq=J2000&-c.r=+15&-c.u=arcsec&-c.geom=r&-source=&-x.rs=10&-source=I%2F355%2Fgaiadr3+I%2F355%2Fparamp&-out.orig=standard&-out=RA_ICRS&-out=DE_ICRS&-out=Source&-out=Plx&-out=PM&-out=pmRA&-out=pmDE&-out=sepsi&-out=RUWE&-out=Dup&-out=Gmag&-out=BPmag&-out=RPmag&-out=BP-RP&-out=RV&-out=e_RV&-out=Vbroad&-out=GRVSmag&-out=VarFlag&-out=NSS&-out=XPcont&-out=XPsamp&-out=RVS&-out=EpochPh&-out=EpochRV&-out=MCMCGSP&-out=MCMCMSC&-out=Teff&-out=logg&-out=%5BFe%2FH%5D&-out=Dist&-out=A0&-out=HIP&-out=PS1&-out=SDSS13&-out=SKYM2&-out=TYC2&-out=URAT1&-out=AllWISE&-out=APASS9&-out=GSC23&-out=RAVE5&-out=2MASS&-out=RAVE6&-out=RAJ2000&-out=DEJ2000&-out=Pstar&-out=PWD&-out=Pbin&-out=ABP&-out=ARP&-out=GMAG&-out=Rad&-out=Rad-Flame&-out=Lum-Flame&-out=Mass-Flame&-out=Age-Flame&-out=z-Flame&-meta.ucd=2&-meta=1&-meta.foot=1&-usenav=1&-bmark=GET&Source="
+        return make_clickable(val, gaia_dr3_url_base, "_gaiadr3")
+
+    def make_gaia_source_clickable_to_gaia_dr3_var(val):
+        gaia_dr3_var_url_base = "https://vizier.cfa.harvard.edu/viz-bin/VizieR-4?-ref=VIZ63b1f3211239e&-to=-4b&-from=-4&-this=-4&%2F%2Fsource=I%2F358%2Fvclassre&%2F%2Ftables=I%2F358%2Fvarisum&%2F%2Ftables=I%2F358%2Fvclassre&%2F%2Ftables=I%2F358%2Fveb&%2F%2Ftables=I%2F358%2Fvst&-out.max=50&%2F%2FCDSportal=http%3A%2F%2Fcdsportal.u-strasbg.fr%2FStoreVizierData.html&-out.form=HTML+Table&%2F%2Foutaddvalue=default&-order=I&-oc.form=sexa&-out.src=I%2F358%2Fvarisum%2CI%2F358%2Fvclassre%2CI%2F358%2Fveb%2CI%2F358%2Fvst&-nav=cat%3AI%2F358%26tab%3A%7BI%2F358%2Fvarisum%7D%26tab%3A%7BI%2F358%2Fvclassre%7D%26tab%3A%7BI%2F358%2Fveb%7D%26tab%3A%7BI%2F358%2Fvst%7D%26key%3Asource%3DI%2F358%2Fvclassre%26HTTPPRM%3A&-c=&-c.eq=J2000&-c.r=++2&-c.u=arcmin&-c.geom=r&-source=&-x.rs=10&-source=I%2F358%2Fvarisum+I%2F358%2Fvclassre+I%2F358%2Fveb+I%2F358%2Fvst&-out.orig=standard&-out=Source&-out=RA_ICRS&-out=DE_ICRS&-out=TimeG&-out=DurG&-out=Gmagmean&-out=TimeBP&-out=DurBP&-out=BPmagmean&-out=TimeRP&-out=DurRP&-out=RPmagmean&-out=VCR&-out=VRRLyr&-out=VCep&-out=VPN&-out=VST&-out=VLPV&-out=VEB&-out=VRM&-out=VMSO&-out=VAGN&-out=Vmicro&-out=VCC&-out=SolID&-out=Classifier&-out=Class&-out=_RA.icrs&-out=_DE.icrs&-out=Rank&-out=TimeRef&-out=Freq&-out=magModRef&-out=PhaseGauss1&-out=sigPhaseGauss1&-out=DepthGauss1&-out=PhaseGauss2&-out=sigPhaseGauss2&-out=DepthGauss2&-out=AmpCHP&-out=PhaseCHP&-out=ModelType&-out=Nparam&-out=rchi2&-out=PhaseE1&-out=DurE1&-out=DepthE1&-out=PhaseE2&-out=DurE2&-out=DepthE2&-out=Ampl&-out=NfoVTrans&-out=FoVAbbemean&-out=NTimeScale&-out=TimeScale&-out=Variogram&-meta.ucd=0&-meta=0&-usenav=1&-bmark=GET&Source="
+        return make_clickable(val, gaia_dr3_var_url_base, "_gaiadr3_var")
+
     def make_subject_img_id_image(val):
         # Note: setting custom dimension is a bit tricky and is abandoned for now.
         # height can be changed with CSS height easily,
@@ -319,6 +334,8 @@ def style(df_catalog, show_thumbnail=False):
         "ASASSN_URL": make_asas_sn_url_clickable,
         "VSX_OID": make_vsx_id_clickable,
         "TESSEB_URL": make_tesseb_link,
+        "GAIA_DR3_URL": make_gaia_source_clickable_to_gaia_dr3,
+        "GAIA_DR3_VAR_URL": make_gaia_source_clickable_to_gaia_dr3_var,
     }
 
     if show_thumbnail:
