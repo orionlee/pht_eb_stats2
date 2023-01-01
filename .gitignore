@@ -10,4 +10,7 @@ src/cache/
 # TESS data products downloaded locally for vetting individual targets
 vetting/data/mastDownload
 
+# list of TICs for prefetch one use
+vetting/tics_prefetch_list*.txt
+
 tmp/
