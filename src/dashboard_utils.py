@@ -33,7 +33,7 @@ CAT_COLS_COMMON = [
     "is_eb_catalog",
     "eb_score",
     "SIMBAD_MAIN_ID",
-    "SIMBAD_OTYPES",
+    "SIMBAD_VAR_OTYPES",
     "SIMBAD_Is_EB",
     "VSX_OID",
     # VSX_Name is more human friendly, but I can use OID and go to the VSX page directly
@@ -305,13 +305,6 @@ def style(df_catalog, show_thumbnail=False):
         # One probably needs to specify the styles on the column <tds>
         return f'<img src="https://panoptes-uploads.zooniverse.org/subject_location/{val}.png">'
 
-    def abbreviate_simbad_otypes(val):
-        # hide common types not useful for analysis
-        if pd.isna(val):
-            return val
-        # remove generic types, also remove duplicates
-        return "|".join(set(val.split("|")) - set(["*", "PM*", "IR"]))
-
     def make_tesseb_link(val):
         # TESSEB column is populated with tic id so as to construct the links
         # as follows
@@ -323,7 +316,6 @@ def style(df_catalog, show_thumbnail=False):
         "tic_id": make_tic_id_clickable,
         "best_subject_id": make_subject_id_clickable,
         "SIMBAD_MAIN_ID": make_simbad_id_clickable,
-        "SIMBAD_OTYPES": abbreviate_simbad_otypes,
         "ASASSN_URL": make_asas_sn_url_clickable,
         "VSX_OID": make_vsx_id_clickable,
         "TESSEB": make_tesseb_link,
