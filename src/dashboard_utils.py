@@ -20,7 +20,7 @@ import user_stats
 import gaia_meta
 import tesseb_meta
 
-from common import prefix_columns, left_outer_join_by_column_merge
+from common import as_nullable_int, left_outer_join_by_column_merge
 
 #
 # Constants to select commonly used column subsets from various catalogs
@@ -198,6 +198,9 @@ def join_pht_eb_candidate_catalog_with(aux_catalogs, df_pht=None):
                 join_col_main="tic_id", join_col_aux="TIC_ID",
                 prefix_aux="GAIA"
                 )
+            # Misc. type fixing after join
+            as_nullable_int(df_pht, ["GAIA_Source", "GAIA_SolID"])  # some cells is NA, so convert it to nullable integer
+
         else:
             raise ValueError(f"Unsupported axillary catalog: {aux_cat}")
 
