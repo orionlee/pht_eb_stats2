@@ -385,9 +385,28 @@ def combine_and_save_simbad_meta_by_tics_and_xmatch(min_score_to_include=0):
 def get_aliases(simbad_meta_row):
     aliases_str = simbad_meta_row["IDS"]
     if has_value(aliases_str):
+        # TODO: some of the names in TIC are not standardized,
+        # (incompatible with the form used by SIMBAD, VSX, etc.)
+        # e.g., TYC has leading zeros
+        # they should be normalized
         return aliases_str.split("|")
     else:
         return []
+
+
+def to_simbad_var_otypes_str(otypes_str):
+    """Return a SIMBAD OTYPES without those unrelated to variability"""
+    if pd.isna(otypes_str):
+        return np.nan
+
+    non_var_otypes = set(["*", "**", "PM*", "IR", "X", "UV"])
+    otypes = set(otypes_str.split("|"))
+    var_otypes = otypes - non_var_otypes
+
+    if len(var_otypes) > 0:
+        return "|".join(list(var_otypes))
+    else:
+        return np.nan
 
 
 #

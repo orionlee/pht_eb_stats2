@@ -176,6 +176,8 @@ def _add_convenience_columns(df):
     df["min_sector"] = [min(s) for s in sectors]
     df["max_sector"] = [max(s) for s in sectors]
 
+    df["SIMBAD_VAR_OTYPES"] = [simbad_meta.to_simbad_var_otypes_str(s) for s in df["SIMBAD_OTYPES"]]
+
 
 def load_pht_eb_candidate_catalog_from_file(csv_path="../data/catalog_pht_eb_candidates.csv", add_convenience_columns=False):
     df = pd.read_csv(
