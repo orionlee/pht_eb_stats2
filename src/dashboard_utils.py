@@ -329,6 +329,7 @@ def style(df_catalog, show_thumbnail=False):
 
     format_spec = {
         "tic_id": make_tic_id_clickable,
+        "TIC": make_tic_id_clickable,  # column name used in vetting_statuses.csv
         "best_subject_id": make_subject_id_clickable,
         "SIMBAD_MAIN_ID": make_simbad_id_clickable,
         "ASASSN_URL": make_asas_sn_url_clickable,
