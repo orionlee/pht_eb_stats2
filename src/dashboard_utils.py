@@ -318,11 +318,8 @@ def style(df_catalog, show_thumbnail=False):
         return make_clickable(val, gaia_dr3_var_url_base, "_gaiadr3_var")
 
     def make_subject_img_id_image(val):
-        # Note: setting custom dimension is a bit tricky and is abandoned for now.
-        # height can be changed with CSS height easily,
-        # but CSS width seems to be constrained by the overall table styling, and cannot make the image wider
-        # One probably needs to specify the styles on the column <tds>
-        return f'<img src="https://panoptes-uploads.zooniverse.org/subject_location/{val}.png">'
+        # set explicit with here to make it thumbnail. needed to make it work with colab UI
+        return f'<img src="https://panoptes-uploads.zooniverse.org/subject_location/{val}.png" style="width: 120px;">'
 
     def make_tesseb_link(val):
         # TESSEB_URL column is populated with tic id so as to construct the links
