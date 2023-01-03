@@ -277,16 +277,20 @@ def plot_tic_on_hr(row_tic):
 
 
 def style(df_catalog, show_thumbnail=False):
-    def make_clickable(val, url_prefix, target, quote_val=False, link_text_func=None):
+    def make_clickable(val, url_template, target, quote_val=False, link_text_func=None):
         if pd.isna(val):
             return val
-        val_in_url = val
+        val_in_url = str(val)
         if quote_val:
-            val_in_url = urllib.parse.quote_plus(str(val))
+            val_in_url = urllib.parse.quote_plus(val)
+        if "%s" not in url_template:
+            url = f"{url_template}{val_in_url}"
+        else:
+            url = url_template.replace("%s", val_in_url)
         link_text = val
         if link_text_func is not None:
             link_text = link_text_func(val)
-        return f'<a target="{target}" href="{url_prefix}{val_in_url}">{link_text}</a>'
+        return f'<a target="{target}" href="{url}">{link_text}</a>'
 
     def make_tic_id_clickable(val):
         return make_clickable(val, "https://exofop.ipac.caltech.edu/tess/target.php?id=", "_exofop")
@@ -321,10 +325,17 @@ def style(df_catalog, show_thumbnail=False):
         return f'<img src="https://panoptes-uploads.zooniverse.org/subject_location/{val}.png">'
 
     def make_tesseb_link(val):
-        # TESSEB column is populated with tic id so as to construct the links
+        # TESSEB_URL column is populated with tic id so as to construct the links
         # as follows
         return make_clickable(
             val, "http://tessebs.villanova.edu/search_results?tic=", "_tesseb", link_text_func=lambda val: "details"
+        )
+
+    def make_tic_id_clickable_to_vetting_doc(val):
+        # Vetting_URL column is populated with tic id so as to construct links to vetting notebook
+        return make_clickable(
+            val, "https://colab.research.google.com/github/orionlee/pht_eb_stats2/blob/main/vetting/EB_V_%s.ipynb", "_tesseb",
+            link_text_func=lambda val: "vetting doc",
         )
 
     format_spec = {
@@ -337,6 +348,7 @@ def style(df_catalog, show_thumbnail=False):
         "TESSEB_URL": make_tesseb_link,
         "GAIA_DR3_URL": make_gaia_source_clickable_to_gaia_dr3,
         "GAIA_DR3_VAR_URL": make_gaia_source_clickable_to_gaia_dr3_var,
+        "Vetting_URL": make_tic_id_clickable_to_vetting_doc,
     }
 
     if show_thumbnail:

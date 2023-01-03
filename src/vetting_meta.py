@@ -16,7 +16,12 @@ def _to_disposition_group(disposition):
         return disposition  # should not happen
 
 
-def load_vetting_statuses_table(csv_path="../data/vetting_statuses.csv", add_disposition_group=True, add_tesseb_url_col=False):
+def load_vetting_statuses_table(
+    csv_path="../data/vetting_statuses.csv",
+    add_disposition_group=False,
+    add_tesseb_url_col=False,
+    add_vetting_doc_url_col=False,
+    ):
     df = pd.read_csv(
         csv_path,
         keep_default_na=False,  # to treat empty cell as empty string
@@ -28,5 +33,7 @@ def load_vetting_statuses_table(csv_path="../data/vetting_statuses.csv", add_dis
     if add_tesseb_url_col:
         df["TESSEB_URL"] = df["TIC"]  # a placeholder for UI to create links to TESSEB
 
-    return df
+    if add_vetting_doc_url_col:
+        df["Vetting_URL"] = df["TIC"] # a placeholder for UI to create links to TESSEB
 
+    return df
