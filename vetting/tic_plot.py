@@ -486,30 +486,6 @@ def print_data_range(lcf_coll):
 
 
 def get_momentum_dump_times(lcf):
-
-    # momentum_dump_times_from_file() is no longer useful
-    # `lket.MomentumDumpsAccessor.get_in_range()` is more flexible (e.g., better support for stitched lc better), and faster
-    # but I keep it here as reference
-    def momentum_dump_times_from_file():
-        # Note: momentum_dump signals are by default masked out in LightCurve objects.
-        # To access times marked as such, I need to access the raw LightCurveFile directly.
-        filename = lcf.meta.get("FILENAME", None)
-        if filename is None:
-            warnings.warn("get_momentum_dump_times(): No-Op, because there is the LightCurve object has no backing FITS file.")
-            return np.array([])
-        with fits.open(filename) as hdu:
-            if "TIME" not in hdu[1].columns.names:
-                # case the file has no TIME column, typically non SPOC-produced ones, e.g., CDIPS,
-                # the logic of finding momentum dump would not apply to such files anyway.
-                return np.array([])
-
-            # normal flow
-            time = hdu[1].data["TIME"]
-            mom_dumps_mask = np.bitwise_and(hdu[1].data["QUALITY"], TessQualityFlags.Desat) >= 1
-            time_mom_dumps = time[mom_dumps_mask]
-            return time_mom_dumps
-
-    # main logic
     time_mom_dumps = lcf.meta.get("momentum_dumps", None)
     if time_mom_dumps is None:
         time_mom_dumps = lket.MomentumDumpsAccessor.get_in_range(lcf)
@@ -1504,7 +1480,7 @@ def plot_n_annotate_folded(lc_f, figsize=(10, 5), annotate=True, also_plot_zoom_
 def fold_and_plot(lc, period, epoch_time, flux_in_mag=False, **kwargs):
     lc_f = lc.fold(period=period, epoch_time=epoch_time, epoch_phase=0)
     if flux_in_mag:
-        lc_f = lke.lc_to_flux_in_mag_by_normalization(lc_f)
+        lc_f = lke.to_flux_in_mag_by_normalization(lc_f)
     return plot_n_annotate_folded(lc_f, **kwargs), lc_f
 
 
