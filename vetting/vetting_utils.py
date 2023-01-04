@@ -73,10 +73,15 @@ BIBS = SimpleNamespace(
     ASAS_SN_B="2017PASP..129j4502K",
     GAIA_DR3_N="Gaia collaboration; et al., 2022, Gaia Data Release 3 (Gaia DR3) Part 1 Main source",
     GAIA_DR3_B="2022yCat.1355....0G",
+    GAIA_DR3_ASTROPHY_N="Creevey, O. L.; et al., 2022, Gaia Data Release 3: Astrophysical parameters inference system (Apsis) I -- methods and content overview",
+    GAIA_DR3_ASTROPHY_B="2022arXiv220605864C",
     GAIA_DR3_VAR_N="Gaia collaboration; et al., 2022, Gaia Data Release 3 (Gaia DR3) Part 4 Variability",
     GAIA_DR3_VAR_B="2022yCat.1358....0G",
     TESSEB_N="Prša, A.; et al., 2022, TESS Eclipsing Binary Stars. I. Short-cadence Observations of 4584 Eclipsing Binaries in Sectors 1-26",
     TESSEB_B="2022ApJS..258...16P",
     TESSEB_LIVE_N="TESS Eclipsing Binary Catalogue (online data)",
     # links to live TESS EB is case specific
+    # PHt II paper discussed methodlogy, with (indirect) mentions of eclipsingbinary tagging
+    PHT_II_N="Planet Hunters TESS II: findings from the first two years of TESS",
+    PHT_II_B="2021MNRAS.501.4669E",
 )
