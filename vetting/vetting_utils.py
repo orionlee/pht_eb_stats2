@@ -56,7 +56,9 @@ def display_all_meta_highlights(all_meta):
             gaia_dr3_var_url = f"https://vizier.cds.unistra.fr/viz-bin/VizieR-4?-ref=VIZ63a395c22729a4&-to=-4b&-from=-4&-this=-4&%2F%2Fsource=I%2F358%2Fvclassre&%2F%2Ftables=I%2F358%2Fvarisum&%2F%2Ftables=I%2F358%2Fvclassre&%2F%2Ftables=I%2F358%2Fveb&%2F%2Ftables=I%2F358%2Fvst&-out.max=50&%2F%2FCDSportal=http%3A%2F%2Fcdsportal.u-strasbg.fr%2FStoreVizierData.html&-out.form=HTML+Table&%2F%2Foutaddvalue=default&-order=I&-oc.form=sexa&-nav=cat%3AI%2F358%26tab%3A%7BI%2F358%2Fvarisum%7D%26tab%3A%7BI%2F358%2Fvclassre%7D%26tab%3A%7BI%2F358%2Fveb%7D%26tab%3A%7BI%2F358%2Fvst%7D%26key%3Asource%3DI%2F358%2Fvclassre%26HTTPPRM%3A&-c=&-c.eq=J2000&-c.r=++2&-c.u=arcmin&-c.geom=r&-source=&-source=+I%2F358%2Fvarisum+I%2F358%2Fvclassre+I%2F358%2Fveb+I%2F358%2Fvst&-out.src=I%2F358%2Fvclassre&-out.orig=standard&-out=Source&-out=SolID&-out=Classifier&-out=Class&-out=ClassSc&-out=RA_ICRS&-out=DE_ICRS&-out=_RA.icrs&-out=_DE.icrs&-meta.ucd=2&-meta=1&-meta.foot=1&-usenav=1&-bmark=GET&Source={gaia_id}"
             gaia_header = f"{gaia_header} , [variable]({gaia_dr3_var_url})"
     display(Markdown(gaia_header))
-    display_no_index(all_meta.gaia[["Source", "RAdeg", "DEdeg", "Gmag",  "BP-RP", "Teff", "RUWE", "sepsi", "Dup", "Class", "ClassSc",]])
+    display_no_index(all_meta.gaia[[
+        "Source", "RAJ2000", "DEJ2000", "Gmag",  "BP-RP", "Teff", "RUWE", "sepsi", "Dup", "Class", "ClassSc",
+        ]])
 
 
 # comonly used references
