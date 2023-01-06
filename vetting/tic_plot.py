@@ -172,13 +172,29 @@ def as_4decimal(float_num):
         return float("{0:.4f}".format(_to_unitless(float_num)))
 
 
-def scatter(lc, **kwargs):
-    """lc.scatter() with the proper support of plotting flux in magnitudes"""
-    ax = lc.scatter(**kwargs)
-    y_column = "flux"
+def _flip_yaxis_for_mag(ax, lc, plot_kwargs):
+    y_column = plot_kwargs.get("column", "flux")
     if lc[y_column].unit is u.mag:
         ax.invert_yaxis()
     return ax
+
+
+def scatter(lc, **kwargs):
+    """lc.scatter() with the proper support of plotting flux in magnitudes"""
+    ax = lc.scatter(**kwargs)
+    return _flip_yaxis_for_mag(ax, lc, kwargs)
+
+
+def errorbar(lc, **kwargs):
+    """lc.errorbar() with the proper support of plotting flux in magnitudes"""
+    ax = lc.errorbar(**kwargs)
+    return _flip_yaxis_for_mag(ax, lc, kwargs)
+
+
+def plot(lc, **kwargs):
+    """lc.plot() with the proper support of plotting flux in magnitudes"""
+    ax = lc.plot(**kwargs)
+    return _flip_yaxis_for_mag(ax, lc, kwargs)
 
 
 def add_flux_moving_average(lc, moving_avg_window):
@@ -2274,7 +2290,11 @@ def plot_pixel_level_LC(
                 ax[ii, j].set_yticks([])
 
                 # highlight aperture pixels if specified
-                if aperture_mask is not None and aperture_mask[ii, j]:
+                if aperture_mask is not None and aperture_mask[i, j]:
+                    #                                             ^^^
+                    #                                       use `i` rather than `ii`
+                    # `ii` is for display purpose (small row# at the bottom )
+                    # `i` is for accessing in the underlying array (small row# at the top)
                     for pos in ["top", "bottom", "right", "left"]:
                         ax[ii, j].spines[pos].set_edgecolor("red")
                         ax[ii, j].spines[pos].set_linewidth(2)
