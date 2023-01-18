@@ -42,12 +42,12 @@ from typing import Callable, Optional, Tuple
 LC_Ylim_Func_Type = Callable[[LightCurve], Tuple[float, float]]
 
 
-def get_tic_meta_in_html(lc, a_subject_id=None, download_dir=None):
+def get_tic_meta_in_html(lc, a_subject_id=None, download_dir=None, **kwargs):
     # import locally so that if it fails (due to missing dependency)
     # it will not break the rest of the codes
     import lightkurve_ext_tess as lke_tess
 
-    return lke_tess.get_tic_meta_in_html(lc, a_subject_id=a_subject_id, download_dir=download_dir)
+    return lke_tess.get_tic_meta_in_html(lc, a_subject_id=a_subject_id, download_dir=download_dir, **kwargs)
 
 
 def beep():
@@ -174,7 +174,9 @@ def as_4decimal(float_num):
 
 def _flip_yaxis_for_mag(ax, lc, plot_kwargs):
     y_column = plot_kwargs.get("column", "flux")
-    if lc[y_column].unit is u.mag:
+    # invert y-axis only when it hasn't been inverted
+    # to support multiple scatter/plot/errorbar calls on the same ax object
+    if lc[y_column].unit is u.mag and ax.get_ylim()[1] > ax.get_ylim()[0]:
         ax.invert_yaxis()
     return ax
 
@@ -206,7 +208,7 @@ def add_flux_moving_average(lc, moving_avg_window):
     #    is so large that creating pd.Timestamp with it causes Overflow error
     # 2. if we want the timestamp to reflect the actual time, we need to convert the BTJD in time to timetamp, e.g.
     #      pd.Timestamp(astropy.time.Time(x + 2457000, format='jd', scale='tdb').datetime.timestamp(), unit='s')
-    df["flux_mavg"] = df.rolling(moving_avg_window, on="time_ts")["flux"].mean()
+    df["flux_mavg"] = df.rolling(moving_avg_window, center=True, on="time_ts")["flux"].mean()
     return df
 
 
@@ -1980,7 +1982,7 @@ def scatter_partition_by(lc, partition_by_column, ax=None, **kwargs):
         ax = lk_ax()
 
     for val in np.unique(lc[partition_by_column]):
-        lc[lc[partition_by_column] == val].scatter(ax=ax, label=f"{partition_by_column} {val}", **kwargs)
+        scatter(lc[lc[partition_by_column] == val], ax=ax, label=f"{partition_by_column} {val}", **kwargs)
     ax.set_title(lc.label)
     return ax
 
