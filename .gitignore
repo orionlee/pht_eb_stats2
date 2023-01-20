@@ -11,6 +11,8 @@ src/cache/
 vetting/data/mastDownload
 # cache for HJD UTC conversion
 vetting/data/hjd
+# temporary dir to export processed lightcurves to be used by VStar, vartools, etc.
+vetting/data/lightkurve
 
 # list of TICs for prefetch one use
 vetting/tics_prefetch_list*.txt
