@@ -61,13 +61,17 @@ def display_all_meta_highlights(all_meta):
         ]])
 
 
+def _tce_reference_name_with_year(publication_year):
+    return f"TESS Threshold Crossing Event (TCE), {publication_year}, (online data)"
+
+
 # comonly used references
 BIBS = SimpleNamespace(
     TESS_N="Ricker, G. R.; et al., 2014, Transiting Exoplanet Survey Satellite (TESS)",
     TESS_B="2014SPIE.9143E..20R",
     QLP_N="Huang, C. X.; et al., 2020, Photometry of 10 Million Stars from the First Two Years of TESS Full Frame Images: Part I",
     QLP_B="2020RNAAS...4..204H",
-    TCE_N="TESS Threshold Crossing Event (online data)",
+    TCE_N=_tce_reference_name_with_year,
     # links to TCE is case specific
     TIC_N="Stassun, K. G.; et al., 2019, The Revised TESS Input Catalog and Candidate Target List",  # the paper describing TIC v8, the subsequent paper for v8.1/8.2 focuses mainly on the changes and is not as helpful
     TIC_B="2019AJ....158..138S",
