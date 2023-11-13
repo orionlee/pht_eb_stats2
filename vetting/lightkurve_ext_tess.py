@@ -3,14 +3,10 @@
 #
 
 from collections.abc import Sequence
-import os
 import re
-import shutil
-import time
 from types import SimpleNamespace
 import warnings
 
-import requests
 import numpy as np
 import pandas as pd
 from pandas.io.formats.style import Styler
@@ -22,6 +18,7 @@ from astropy.table import Table
 from astropy.time import Time
 import astropy.units as u
 
+import download_utils
 import lightkurve as lk
 import lightkurve_ext as lke
 import tess_dv
@@ -35,89 +32,13 @@ R_jup = 69911000  # radius of Jupiter [m]
 BTJD_REF = 2457000
 
 #
-# Generic file download, and CSV helper
+# Generic CSV Download helper
 #
 
 
-def _policy_always_use(url, filename):
-    return True
-
-
-def _policy_always_reject(url, filename):
-    return False
-
-
-def _create_policy_ttl_in_seconds(ttl_in_seconds):
-    def _policy_ttl(url, filename):
-        try:
-            time_since_last_modified = time.time() - os.path.getmtime(filename)
-            if time_since_last_modified <= ttl_in_seconds:
-                return True
-            else:
-                return False
-        except Exception as e:
-            warnings.warn(
-                f"Unexpected error in determining if local file should be used. Local file is thus not used. Error: {e}",
-            )
-            return False
-
-    return _policy_ttl
-
-
-def _create_policy_ttl_in_days(ttl_in_days):
-    return _create_policy_ttl_in_seconds(ttl_in_days * 86400)
-
-
-LocalFileUsePolicy = SimpleNamespace(
-    ALWAYS_USE=_policy_always_use,
-    ALWAYS_REJECT=_policy_always_reject,
-    TTL_IN_SECONDS=_create_policy_ttl_in_seconds,
-    TTL_IN_DAYS=_create_policy_ttl_in_days,
-)
-
-
-def _create_local_filename(url, filename, download_dir):
-    if filename is not None:
-        local_filename = filename
-    else:
-        local_filename = url.split("/")[-1]
-        local_filename = re.sub(r"\?.*$", "", local_filename)
-
-    return os.path.join(download_dir, local_filename)
-
-
-def _download_file(url, filename=None, download_dir=None):
-    if download_dir is None:
-        download_dir = ""
-
-    local_filename = _create_local_filename(url, filename, download_dir)
-
-    with requests.get(url, stream=True) as response:
-        response.raise_for_status()
-        # write to a temporary file. If successful, make it the real local file
-        # it is to preven interrupted download leaving a partial file
-        local_filename_temp = f"{local_filename}.download"
-        with open(local_filename_temp, "wb") as out_file:
-            shutil.copyfileobj(response.raw, out_file)
-        os.replace(local_filename_temp, local_filename)
-    return local_filename
-
-
-def _download_file_if_needed(url, filename=None, download_dir=None, use_localfile_func=None):
-    if download_dir is None:
-        download_dir = ""
-
-    local_filename = _create_local_filename(url, filename, download_dir)
-    if os.path.isfile(local_filename):
-        if use_localfile_func is None or use_localfile_func(url, local_filename):
-            return local_filename
-
-    return _download_file(url, filename, download_dir)
-
-
-def _get_csv(url, filename, download_dir, use_localfile_func, **kwargs):
-    local_filename = _download_file_if_needed(
-        url, filename=filename, download_dir=download_dir, use_localfile_func=use_localfile_func
+def _get_csv(url, filename, download_dir, cache_policy_func, **kwargs):
+    local_filename = download_utils.download_file(
+        url, filename=filename, download_dir=download_dir, cache_policy_func=cache_policy_func
     )
     return pd.read_csv(local_filename, **kwargs)
 
@@ -135,7 +56,6 @@ def _single_row(df):
 
 
 class TOIAccessor:
-
     Headers = SimpleNamespace(
         TIC="TIC ID",
         TOI="TOI",
@@ -153,20 +73,20 @@ class TOIAccessor:
         COMMENTS="Comments",
     )
 
-    # TODO: in-memory cache (with @cached) needs to be redone to properly support use_localfile_func
+    # TODO: in-memory cache (with @cached) needs to be redone to properly support cache_policy_func
     @classmethod
-    def get_all_tois(cls, download_dir=None, use_localfile_func=None):
+    def get_all_tois(cls, download_dir=None, cache_policy_func=None):
         url = "https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&output=csv"
         filename = "tess_tois.csv"
-        res = _get_csv(url, filename, download_dir, use_localfile_func=use_localfile_func, dtype={cls.Headers.TOI: str})
-        # add dervied columns
+        res = _get_csv(url, filename, download_dir, cache_policy_func=cache_policy_func, dtype={cls.Headers.TOI: str})
+        # add derived columns
         res[cls.Headers.EPOCH_BTJD] = res[cls.Headers.EPOCH_BJD] - BTJD_REF
         res[cls.Headers.PLANET_RADIUS_J] = res[cls.Headers.PLANET_RADIUS_E] * R_earth / R_jup
         res[cls.Headers.DEPTH_PCT] = res[cls.Headers.DEPTH_PPM] / 10000
         return res
 
-    def __init__(self, download_dir=None, use_localfile_func=None):
-        self._all = self.get_all_tois(download_dir=download_dir, use_localfile_func=use_localfile_func)
+    def __init__(self, download_dir=None, cache_policy_func=None):
+        self._all = self.get_all_tois(download_dir=download_dir, cache_policy_func=cache_policy_func)
 
     def all(self):
         return self._all
@@ -183,7 +103,6 @@ class TOIAccessor:
 
 
 class CTOIAccessor:
-
     Headers = SimpleNamespace(
         TIC="TIC ID",
         CTOI="CTOI",
@@ -200,24 +119,24 @@ class CTOIAccessor:
     )
 
     @classmethod
-    def get_all_ctois(cls, download_dir=None, use_localfile_func=None):
+    def get_all_ctois(cls, download_dir=None, cache_policy_func=None):
         url = "https://exofop.ipac.caltech.edu/tess/download_ctoi.php?sort=ctoi&output=csv"
         filename = "tess_ctois.csv"
         res = _get_csv(
             url,
             filename,
             download_dir,
-            use_localfile_func=use_localfile_func,
+            cache_policy_func=cache_policy_func,
             dtype={cls.Headers.CTOI: str, cls.Headers.TOI: str},
         )
-        # add dervied columns
+        # add derived columns
         res[cls.Headers.EPOCH_BTJD] = res[cls.Headers.EPOCH_BJD] - BTJD_REF
         res[cls.Headers.PLANET_RADIUS_J] = res[cls.Headers.PLANET_RADIUS_E] * R_earth / R_jup
         res[cls.Headers.DEPTH_PCT] = res[cls.Headers.DEPTH_PPM] / 10000
         return res
 
-    def __init__(self, download_dir=None, use_localfile_func=None):
-        self._all = self.get_all_ctois(download_dir=download_dir, use_localfile_func=use_localfile_func)
+    def __init__(self, download_dir=None, cache_policy_func=None):
+        self._all = self.get_all_ctois(download_dir=download_dir, cache_policy_func=cache_policy_func)
 
     def all(self):
         return self._all
@@ -233,17 +152,32 @@ class CTOIAccessor:
 def add_transit_as_codes_column_to_df(df, headers, label_value_func):
     h = headers
     # string interpolation does not work. So use old-school concatenation
+
+    # for single transit TOI/CTOIs, period returned is often nan or 0
+    # to make the codes (used in transit_specs) usable later on
+    # we substitute it with a large period
+    def handle_nan_or_zero(per):
+        if np.isnan(per) or per == 0.0:
+            return 9999.9
+        else:
+            return per
+
+    # somehow `period = pd.Series([handle_nan_or_zero(p) for p in df[h.PERIOD]])`
+    # does not work. I temporarily created a new column as a workaround
+    df["_period_nan_fixed"] = [handle_nan_or_zero(p) for p in df[h.PERIOD]]
+
     df["Codes"] = (
         "epoch="
         + df[h.EPOCH_BTJD].map("{:.4f}".format)
         + ", duration_hr="
         + df[h.DURATION_HR].map("{:.4f}".format)
         + ", period="
-        + df[h.PERIOD].map("{:.6f}".format)
+        + df["_period_nan_fixed"].map("{:.6f}".format)
         + ', label="'
         + label_value_func(df)
         + '",'
     )
+    df.drop(columns=["_period_nan_fixed"], inplace=True)  # drop the temp column
     return df
 
 
@@ -384,10 +318,10 @@ def _get_ctois_in_html(tic, download_dir=None):
     return html
 
 
-def get_tic_meta_in_html(lc, a_subject_id=None, download_dir=None, tce_filter_func=None):
+def get_tic_meta_in_html(lc_or_tic, a_subject_id=None, download_dir=None, tce_filter_func=None):
     # This function does not do the actual display,
     # so that the caller can call it in background
-    # and display it whereever it's needed
+    # and display it wherever it's needed
     def link(link_text, url):
         return f"""<a href="{url}" target="_blank">{link_text}</a>"""
 
@@ -395,13 +329,19 @@ def get_tic_meta_in_html(lc, a_subject_id=None, download_dir=None, tce_filter_fu
         return f"""    <tr><td>{prop_name}</td><td>{prop_value}</td></tr>\n"""
 
     # main logic
-    m = lc.meta
-    tic_id = str(m.get("TICID"))
+    if isinstance(lc_or_tic, lk.LightCurve):
+        tic_id = str(lc_or_tic.meta.get("TICID"))
+    elif isinstance(lc_or_tic, (str, int)):
+        tic_id = lc_or_tic
+    else:
+        raise TypeError("lc_or_tic must be either a LightCurve object or a tic id (int/str)")
+
+    m = _to_stellar_meta(lc_or_tic)
 
     def safe_m_get(key, default_val):
         # in some meta, the key exists but the value is None
         # this helper handles it
-        res = m.get(key, default_val)
+        res = getattr(m, key, default_val)
         return res if res is not None else default_val
 
     html = f"""
@@ -428,14 +368,15 @@ def get_tic_meta_in_html(lc, a_subject_id=None, download_dir=None, tce_filter_fu
         )
         # show the sector number (here we assume a_subject_id does correspond the the sector)
         # the sector is useful to be included so that users can easily locate the TCE matching the sector.
-        html += f' (sector {safe_m_get("SECTOR", "")})'
+        html += f' (sector {safe_m_get("sector", "")})'
     html += "<br>\n"
 
     # stellar parameters
     html += "<table>\n"
-    html += prop("R<sub>S</sub> (in R<sub>☉</sub>)", f'{safe_m_get("RADIUS", 0):.3f}')
-    html += prop("Magnitude (TESS)", f'{safe_m_get("TESSMAG", 0):.2f}')
-    html += prop("T_eff (in K)", safe_m_get("TEFF", 0))
+    html += prop("R<sub>S</sub> (in R<sub>☉</sub>)", f'{safe_m_get("radius", -1):.3f}')
+    html += prop("M<sub>S</sub> (in M<sub>☉</sub>)", f'{safe_m_get("mass", -1):.3f}')
+    html += prop("Magnitude (TESS)", f'{safe_m_get("tess_mag", -1):.2f}')
+    html += prop("T_eff (in K)", safe_m_get("teff", -1))
     html += "</table>\n"
 
     html += "<p>TCEs:</p>"
@@ -556,7 +497,6 @@ def get_momentum_dump_times(lcf):
 
 
 class MomentumDumpsAccessor:
-
     _mom_dumps_tab = None
 
     @classmethod
@@ -783,7 +723,20 @@ def _to_stellar_meta(target):
             label = f"{tic}"
         else:
             label = f"[{ra:4f} {dec:4f}]"
-        return SimpleNamespace(ra=ra, dec=dec, equinox=equinox, pmra=pmra, pmdec=pmdec, tess_mag=tess_mag, label=label)
+        return SimpleNamespace(
+            # for Gaia DR3 query use case
+            ra=ra,
+            dec=dec,
+            equinox=equinox,
+            pmra=pmra,
+            pmdec=pmdec,
+            tess_mag=tess_mag,
+            label=label,
+            # additional attributes for get_tic_meta_in_html() use case
+            sector=meta.get("SECTOR"),
+            radius=meta.get("RADIUS"),
+            teff=meta.get("TEFF"),
+        )
 
     # case target is a tic id
     if isinstance(target, (int, str)):
@@ -799,9 +752,38 @@ def _to_stellar_meta(target):
             label = f"{tic}"
         else:
             label = f"[{ra:4f} {dec:4f}]"
-        return SimpleNamespace(ra=ra, dec=dec, equinox=equinox, pmra=pmra, pmdec=pmdec, tess_mag=tess_mag, label=label)
-
+        gaiadr2_id = row["GAIA"]  # useful to crossmatch with Gaia data
+        return SimpleNamespace(
+            ra=ra,
+            dec=dec,
+            equinox=equinox,
+            pmra=pmra,
+            pmdec=pmdec,
+            tess_mag=tess_mag,
+            label=label,
+            gaiadr2_id=gaiadr2_id,
+            # additional attributes for get_tic_meta_in_html() use case
+            radius=row["rad"],
+            mass=row["mass"],
+            teff=row["Teff"],
+        )
     raise TypeError(f"target, of type {type(target)} is not supported")
+
+
+def decode_gaiadr3_nss_flag(nss_flag):
+    """Decode NSS (NON_SINGLE_STAR) flag in Gaia DR3.
+    Reference:
+    https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_main_source_catalogue/ssec_dm_gaia_source.html#p344
+    """
+    flags = []
+    for mask, nss_type in [
+        (0b1, "AB"),  # astrometric binary
+        (0b10, "SB"),  # spectroscopic binary
+        (0b100, "EB"),  # eclipsing binary
+    ]:
+        if nss_flag & mask > 0:
+            flags.append(nss_type)
+    return flags
 
 
 def search_gaiadr3_of_tics(
@@ -809,9 +791,11 @@ def search_gaiadr3_of_tics(
     radius_arcsec=15,
     magnitude_range=2.5,
     pm_range_fraction=0.25,
+    warn_if_all_filtered=True,
     compact_columns=True,
     also_return_html=True,
     verbose_html=True,
+    include_nss_summary_in_html=True,
 ):
     """Locate the lightcurve target's correspond entry in GaiaDR3.
     The match is by an heuristics based on coordinate and magnitude.
@@ -842,6 +826,7 @@ def search_gaiadr3_of_tics(
     targets = targets[targets != None]
 
     for t in targets:
+        gaiadr2_id = getattr(t, "gaiadr2_id", np.nan)
         if magnitude_range is not None:
             lower_limit, upper_limit = t.tess_mag - magnitude_range, t.tess_mag + magnitude_range
         else:
@@ -858,15 +843,19 @@ def search_gaiadr3_of_tics(
             pmra=t.pmra,
             pmdec=t.pmdec,
             pm_range_fraction=pm_range_fraction,
+            warn_if_all_filtered=warn_if_all_filtered,
         )
 
         if a_result is not None:
             a_result["target"] = [t.label for i in range(0, len(a_result))]
+            a_result["target_gaia_dr2_source"] = [gaiadr2_id for i in range(0, len(a_result))]
+
             result_list.append(a_result)
 
     with warnings.catch_warnings():
-        # Avoid spurious MergeConflictWarning: Cannot merge meta key 'null' types <class 'float'> and <class 'float'>, choosing null=nan [astropy.utils.metadata]
-        result = astropy.table.vstack(result_list)
+        # Avoid spurious "MergeConflictWarning: Cannot merge meta key 'null' types <class 'float'>
+        #  and <class 'float'>, choosing null=nan [astropy.utils.metadata]"
+        result = astropy.table.vstack(result_list) if len(result_list) > 0 else []
 
     if len(result) < 1:
         if also_return_html:
@@ -890,6 +879,11 @@ def search_gaiadr3_of_tics(
         # https://web.archive.org/web/20211121142803/https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
         if row["sepsi"] > 2:
             flag += "!"
+        # e_RV > 1.5 heuristics suggested by mhuten that seems to be reliable
+        if row["e_RV"] > 1.5:
+            flag += "!"
+        if str(row["Source"]) == str(row["target_gaia_dr2_source"]):  # use str to avoid str / int type complication
+            flag += " ✓"  # signify Gaia DR3 ID match with TIC's Gaia DR2 ID
         flag_column_values.append(flag)
     result.add_column(flag_column_values, name="flag")
     result_all_columns = result
@@ -918,6 +912,7 @@ def search_gaiadr3_of_tics(
             "VarFlag",  # Gaia DR3: variability
             "EpochPh",  # Gaia DR3: 1 if epoch photometry is available
             "RV",  # Gaia DR3
+            "e_RV",  # Gaia DR3, e_RV > 1.5 km/s also possibly signifies non single star
             "EpochRV",  # Gaia DR3
             "Dup",  # Gaia DR3: if there are multiple source/Gaia DR3 entries for the same target
             "Source",
@@ -929,11 +924,16 @@ def search_gaiadr3_of_tics(
         html = ""
         if verbose_html:
             for t in targets:
-                html = html + (
-                    f"<pre>TIC {t.label} - TESS mag: {t.tess_mag} ; coordinate: {t.ra}, {t.dec} ; "
-                    f"PM: {t.pmra}, {t.pmdec} .</pre>"
+                stellar_summary = (
+                    f"TIC {t.label} - TESS mag: {t.tess_mag} ; coordinate: {t.ra}, {t.dec} ; " f"PM: {t.pmra}, {t.pmdec} ."
                 )
-        html = html + result._repr_html_()
+                gaiadr2_id = getattr(t, "gaiadr2_id", None)
+                if gaiadr2_id is not None:
+                    stellar_summary += f" Gaia DR2 {gaiadr2_id}"
+                html += f"<pre>{stellar_summary}</pre>"
+
+            with astropy.conf.set_temp("max_lines", 250):
+                html = html + result._repr_html_()
 
         # linkify Gaia DR3 ID
         for id in result["Source"]:
@@ -945,6 +945,27 @@ def search_gaiadr3_of_tics(
         # remove the Table length=n message
         result_len = len(result)
         html = html.replace(f"<i>Table length={result_len}</i>", "")
+
+        if include_nss_summary_in_html:
+            with warnings.catch_warnings():
+                # ignore "Format strings passed to MaskedConstant are ignored, but in future may error or produce different behavior"
+                warnings.filterwarnings(
+                    "ignore", category=FutureWarning, message=".*Format strings passed to MaskedConstant are ignored,.*"
+                )
+                for i in range(0, len(result_all_columns)):
+                    html_inner = f"RUWE: {result_all_columns[i]['RUWE']}, astrometric excess noise significance: {result_all_columns[i]['sepsi']:.3f}, e_RV: {result_all_columns[i]['e_RV']:.2f} km/s"
+                    nss_flag = result_all_columns[i]["NSS"]
+                    if nss_flag > 0:
+                        html_inner += f"; NSS: {nss_flag} ({decode_gaiadr3_nss_flag(nss_flag)})"
+                    html += f"<pre>{html_inner}</pre>"
+
+        if verbose_html:
+            html += """
+<br>flag - &emsp; !: non single star proxy indicator (RUWE, sepsi, e_RV) ; &emsp; ✓: Gaia source matched with the one in TIC
+<br>Reference:
+    <a target ="_doc_gaiadr3_vizier" href="https://vizier.cds.unistra.fr/viz-bin/VizieR-3?-source=I/355/gaiadr3">Column descption on Vizier</a> &nbsp; | &nbsp;
+    <a target="_doc_gaiadr3_datamodel" href="https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_main_source_catalogue/ssec_dm_gaia_source.html">data model doc on ESA</a>
+"""
 
         return result_all_columns, result, html
     else:

@@ -97,7 +97,6 @@ def _normalize_to_percent_quiet(lc):
 
 # Plot the flux changes (not flux themselves) to get a sense of the rate of changes, not too helpful yet.
 def plot_lcf_flux_delta(lcf, ax, xmin=None, xmax=None, moving_avg_window="30min"):
-
     # possible input arguments
     lc = _normalize_to_percent_quiet(lcf)
 
@@ -1018,9 +1017,10 @@ def mark_transit_times(
     #
     if axvline_kwargs_specs is None:
         axvline_kwargs_specs = [dict(label="dip", linestyle="--", color="red")]
+    axvline_kwargs_specs = [aks.copy() for aks in axvline_kwargs_specs]  # avoid modifying user's argument by making local copy
 
     # use the label in tt_specs if not specified in axvline_kwargs
-    for (a_spec, an_axvline_kwargs, idx_0_based) in zip(tt_specs, axvline_kwargs_specs, range(len(axvline_kwargs_specs))):
+    for a_spec, an_axvline_kwargs, idx_0_based in zip(tt_specs, axvline_kwargs_specs, range(len(axvline_kwargs_specs))):
         if an_axvline_kwargs.get("label") is None:
             an_axvline_kwargs["label"] = a_spec.get("label", f"dip {idx_0_based + 1}")
 
@@ -1030,14 +1030,14 @@ def mark_transit_times(
     # so that each tt set will have 1 legend
     # if we simply set legend at the end, each dip will have its own legend!
     # TODO: use `vlines_y_in_axes_coord()` helper instead.
-    for (transit_times, axvline_kwargs) in zip(tt_list, axvline_kwargs_specs):
+    for transit_times, axvline_kwargs in zip(tt_list, axvline_kwargs_specs):
         if len(transit_times) > 0 and axvline_kwargs is not None:
             axvline_kwargs = axvline_kwargs.copy()  # as we might need to modify them locally
             ymin, ymax = axvline_kwargs.pop("ymin", 0), axvline_kwargs.pop("ymax", 0.1)
             ax.axvline(transit_times[0], ymin, ymax, **axvline_kwargs)
     ax.legend(loc=legend_loc)
 
-    for (transit_times, axvline_kwargs) in zip(tt_list, axvline_kwargs_specs):
+    for transit_times, axvline_kwargs in zip(tt_list, axvline_kwargs_specs):
         if axvline_kwargs is not None:
             axvline_kwargs = axvline_kwargs.copy()  # as we might need to modify them locally
             ymin, ymax = axvline_kwargs.pop("ymin", 0), axvline_kwargs.pop("ymax", 0.1)
@@ -1216,7 +1216,6 @@ def plot_skip_data_gap(lc, wspace=0.2, figsize=(16, 4), data_gap_min_days=10, **
 
 
 def plot_centroids(lc, transit_time=None, window=None):
-
     # based on:
     # https://github.com/noraeisner/PH_Coffee_Chat/blob/4a723030ed80eeabdfb0eca49d948b97d61e35f6/False%20Positive/False%20positives%20-%20(4)%20centroid-position.ipynb
 
@@ -1571,6 +1570,9 @@ def animate_folded_lightcurve(lc: FoldedLightCurve, ax=None, num_frames=10, inte
         ax.set_xlim(lc.time.min().value, lc.time.max().value)
         ax.set_ylim(lc.flux.min().value, lc.flux.max().value)
 
+        # keep legend in a fixed location to avoid jumps between frames
+        ax.legend(loc="upper right")
+
         # set title
         if len(cycle_list_subset) < 2:
             cycle_list_subset_label = cycle_list_subset[0]
@@ -1669,7 +1671,18 @@ def interact(
     from bokeh.models.tools import BoxZoomTool, WheelZoomTool, UndoTool, RedoTool
     from astropy.table import Table
 
-    mark_list = []  # to be returned, so it needs to be deined at the top
+    # need to import it, rather than relying on lk.interact
+    # as the interact module may not have been loaded
+    import lightkurve.interact as lk_interact
+
+    # workaround: lk_interact.make_lightcurve_figure_elements() requires quality and cadenceno
+    # until the requirement is relaxed. We'd add dummy column to it
+    lc = lc.copy()
+    for col in ["quality", "cadenceno"]:
+        if col not in lc.colnames:
+            lc[col] = np.zeros_like(lc.flux, dtype=int)
+
+    mark_list = []  # to be returned, so it needs to be denied at the top
 
     def get_tool_of_class(toolbar_or_fig, cls):
         if hasattr(toolbar_or_fig, "toolbar"):
@@ -1682,8 +1695,8 @@ def interact(
         return None
 
     def create_interact_ui(doc):
-        lc_source = lk.interact.prepare_lightcurve_datasource(lc)
-        fig_lc, vertical_line = lk.interact.make_lightcurve_figure_elements(lc, lc_source, ylim_func=ylim_func)
+        lc_source = lk_interact.prepare_lightcurve_datasource(lc)
+        fig_lc, vertical_line = lk_interact.make_lightcurve_figure_elements(lc, lc_source, ylim_func=ylim_func)
         fig_lc.output_backend = "webgl"  # use GPU accelerated graphics when possible
 
         # customize the plot to make it more suitable for our purpose
@@ -2087,9 +2100,18 @@ def plot_with_aperture_n_background(
     return ax
 
 
-def plot_in_out_diff(tpf, epoch, transit_half_duration=0.25, oot_outer_relative=0.5, oot_inner_relative=0.3, plot_lc=True):
+def plot_in_out_diff(
+    tpf,
+    epoch,
+    transit_half_duration=0.25,
+    oot_outer_relative=0.5,
+    oot_inner_relative=0.3,
+    pixel_mask=None,
+    plot_lc=True,
+):
     """
     Plot the in transit average flux and the out of transit average flux and compare the two (difference image).
+    pixel_mask: optional mask to ignore specific pixels, e.g., masking out the brighter pixels of a nearby star to avoid skewing the data.
     """
 
     # based on plot_in_out_TPF() in
@@ -2108,17 +2130,19 @@ def plot_in_out_diff(tpf, epoch, transit_half_duration=0.25, oot_outer_relative=
 
     # loop through all of the list of PCA corrected flux vs time arrays for each marked transit-event
     for idx, tpf_filt in enumerate(tpf_list):  # idx is for each maked transit-event
-
         T0 = T0_list[idx]  # the time of the transit-like event
         t = t_list[idx]  # the time array
 
         intr = abs(T0 - t) < transit_half_duration  # create a mask of the in transit times
         oot = (abs(T0 - t) < oot_outer_relative) * (
-            abs(T0 - t) < oot_inner_relative
+            abs(T0 - t) > oot_inner_relative
         )  # create a mask of the out of transit times
         img_intr = tpf_filt[intr, :, :].sum(axis=0) / float(intr.sum())  # apply the masks and normalize the flux
         img_oot = tpf_filt[oot, :, :].sum(axis=0) / float(oot.sum())
         img_diff = img_oot - img_intr  # calculate the difference image (out of transit minus in-transit)
+        if pixel_mask is not None and pixel_mask.any():
+            print("INFO Some pixels masked")
+            img_diff[pixel_mask] = np.nan
 
         # ---- PLOT -------
 
@@ -2150,20 +2174,39 @@ def plot_in_out_diff(tpf, epoch, transit_half_duration=0.25, oot_outer_relative=
     plt.tight_layout()
 
     if not plot_lc:
-        return None
+        return img_diff, img_intr, img_oot, dict(intr=intr, oot=oot)
 
-    # ---- additional lightcurve plot to help visualization of the time span measured -------
-    lc = tpf.to_lightcurve().remove_nans()
-    lc = lc.truncate(T0 - oot_outer_relative * 1.25, T0 + oot_outer_relative * 1.25)
-    with plt.style.context(lk.MPLSTYLE):
-        ax = plt.figure(figsize=(6, 3)).gca()
-        ax = lc.scatter(ax=ax)
-        ax.axvline(T0, color="red", ymax=0.15, linewidth=1, linestyle="--", label="epoch")
-        ax.axvspan(T0 - transit_half_duration, T0 + transit_half_duration, facecolor="red", alpha=0.3, label="In Transit")
-        ax.axvspan(T0 - oot_outer_relative, T0 - oot_inner_relative, facecolor="green", alpha=0.3, label="Out of Transit")
-        # no label to avoid double legend
-        ax.axvspan(T0 + oot_inner_relative, T0 + oot_outer_relative, facecolor="green", alpha=0.3)
-        ax.legend(loc="upper right", fontsize="small")
+    # ---- additional lightcurve plots to help visualization of the time span measured ----
+
+    # 1. the lightcurve of the aperture pixels
+    lc_target = tpf.to_lightcurve().remove_nans()
+
+    # 2. the lightcurve of the pixel with the biggest difference flux
+    # it's useful for cases that the pixel is off target, diagnose whether the
+    # pixel has variation significantly different from the aperture such that
+    # the out-of-transit range contains skewed data, thus skewing the difference calculation.
+    # Example of such targets:  TIC 6904949
+    #  https://www.zooniverse.org/projects/nora-dot-eisner/planet-hunters-tess/talk/subjects/91668169
+    brightest_px_yx = np.unravel_index(np.nanargmax(img_diff), img_diff.shape)
+    brightest_px_mask = np.full(tpf.flux[0].shape, False, dtype=bool)
+    brightest_px_mask[brightest_px_yx[0], brightest_px_yx[1]] = True
+    lc_brightest_px = tpf.to_lightcurve(aperture_mask=brightest_px_mask).remove_nans()
+    lc_brightest_px.label = f"Largest Flux Diff Pixel at {brightest_px_yx}"
+    axs = []
+    for lc in [lc_target, lc_brightest_px]:
+        lc = lc.truncate(T0 - oot_outer_relative * 1.25, T0 + oot_outer_relative * 1.25)
+        with plt.style.context(lk.MPLSTYLE):
+            ax = plt.figure(figsize=(6, 3)).gca()
+            ax = lc.scatter(ax=ax)
+            ax.axvline(T0, color="red", ymax=0.15, linewidth=1, linestyle="--", label="epoch")
+            ax.axvspan(T0 - transit_half_duration, T0 + transit_half_duration, facecolor="red", alpha=0.3, label="In Transit")
+            ax.axvspan(T0 - oot_outer_relative, T0 - oot_inner_relative, facecolor="green", alpha=0.3, label="Out of Transit")
+            # no label to avoid double legend
+            ax.axvspan(T0 + oot_inner_relative, T0 + oot_outer_relative, facecolor="green", alpha=0.3)
+            ax.legend(loc="upper right", fontsize="small")
+        axs.append(ax)
+
+    return img_diff, img_intr, img_oot, dict(intr=intr, oot=oot), axs
 
 
 def plot_pixel_level_LC(
@@ -2192,7 +2235,6 @@ def plot_pixel_level_LC(
     # loop through the transits and make plot for each ( only the first is currently displayed in the pdf report)
     plot_half_width = oot_outer_relative * 1.25
     for idx, X1_original in enumerate(tpf_list):
-
         bkg = np.flip(bkg_list[idx], axis=0)
         arrshape = arrshape_list[idx]
         peak = transit_list[idx]
@@ -2206,7 +2248,7 @@ def plot_pixel_level_LC(
 
         intr = abs(T0 - t) < transit_half_duration  # create a mask of the in transit times
         oot = (abs(T0 - t) < oot_outer_relative) * (
-            abs(T0 - t) < oot_inner_relative
+            abs(T0 - t) > oot_inner_relative
         )  # create a mask of the out of transit times
 
         fig, ax = plt.subplots(
@@ -2226,7 +2268,6 @@ def plot_pixel_level_LC(
             ii = arrshape[1] - 1 - i  # we want to plot this such that the pixels increase from left to right and bottom to top
 
             for j in range(0, arrshape[2]):
-
                 apmask = np.zeros(arrshape[1:], dtype=np.int)
                 apmask[i, j] = 1
                 apmask = apmask.astype(bool)

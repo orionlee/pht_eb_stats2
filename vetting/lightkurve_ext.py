@@ -55,6 +55,8 @@ def of_sector(lcf_coll, sectorNum):
 
 def of_sectors(*args):
     lk_coll_or_sr = args[0]
+    if lk_coll_or_sr is None:
+        return []
     if len(args) == 1:
         # when no sectors are specified, return entire collection
         # For convenience: when a notebooks is modified such that
@@ -66,7 +68,9 @@ def of_sectors(*args):
     if hasattr(lk_coll_or_sr, "sector"):
         return lk_coll_or_sr[np.in1d(lk_coll_or_sr.sector, sector_nums)]
     elif hasattr(lk_coll_or_sr, "table") and lk_coll_or_sr.table["sequence_number"] is not None:
-        return lk.SearchResult(lk_coll_or_sr.table[np.in1d(lk_coll_or_sr.table["sequence_number"], sector_nums)])
+        res = lk.SearchResult(lk_coll_or_sr.table[np.in1d(lk_coll_or_sr.table["sequence_number"], sector_nums)])
+        res = _sort_chronologically(res)
+        return res
     else:
         raise TypeError(f"Unsupported type of collection: {type(lk_coll_or_sr)}")
 
@@ -130,7 +134,12 @@ def of_2min_cadences(lcf_coll):
 
 def estimate_cadence(lc, unit=None, round_unit_result=True):
     """Estimate the cadence of a lightcurve by returning the median of a sample"""
-    res = np.nanmedian(np.diff(lc.time[:100].value))
+    if isinstance(lc, lk.FoldedLightCurve):
+        time_vals = lc.time_original.value
+        time_vals = np.sort(time_vals)
+    else:
+        time_vals = lc.time.value
+    res = np.nanmedian(np.diff(time_vals[:100]))
     if unit is not None:
         res = (res * u.day).to(unit)  # LATER: handle cases lc.time is not in days
         if round_unit_result:
@@ -207,6 +216,19 @@ def estimate_object_radius_in_r_jupiter(lc, depth):
     return r_obj_in_r_jupiter
 
 
+def _sort_chronologically(sr: lk.SearchResult):
+    # Resort the SearchResult rows, because
+    # lightkurve v2.4.2 does not honor mission (chronological)
+    # the workaround here is to resort with pre-v2.4.2 criteria
+    # Note: we must use a copy of the table
+    # because if the underlying table is actually a subset of the underlying table,
+    # the sorting seems to affect the underlying table in some cases,
+    # creating really weird / corrupted results.
+    res = lk.SearchResult(sr.table.copy())
+    res.table.sort(["distance", "year", "mission", "sort_order", "exptime"])
+    return res
+
+
 def download_lightcurves_of_tic_with_priority(
     tic, author_priority=["SPOC", "QLP", "TESS-SPOC"], download_filter_func=None, download_dir=None
 ):
@@ -220,6 +242,7 @@ def download_lightcurves_of_tic_with_priority(
         return None, None, None
 
     sr_unfiltered = sr_unfiltered[sr_unfiltered.target_name == str(tic)]  # in case we get some other nearby TICs
+    sr_unfiltered = _sort_chronologically(sr_unfiltered)
 
     # filter out HLSPs not supported by lightkurve yet
     sr = sr_unfiltered[sr_unfiltered.author != "DIAMANTE"]
@@ -247,6 +270,7 @@ def download_lightcurves_of_tic_with_priority(
     sr_to_download = sr
     if download_filter_func is not None:
         sr_to_download = download_filter_func(sr)
+        sr_to_download = _sort_chronologically(sr_to_download)
         if len(sr_to_download) < len(sr):
             display(
                 HTML(
@@ -257,8 +281,9 @@ SearchResult is further filtered - only a subset will be downloaded."""
 
     lcf_coll = sr_to_download.download_all(download_dir=download_dir)
 
+    print(f"TIC {tic} \t, all available sectors: {abbrev_sector_list(sr)}")
     if lcf_coll is not None and len(lcf_coll) > 0:
-        print(f"TIC {tic} \t#sectors: {len(lcf_coll)} ; {lcf_coll[0].meta['SECTOR']} - {lcf_coll[-1].meta['SECTOR']}")
+        print(f"downloaded #sectors: {len(lcf_coll)} ; {abbrev_sector_list(lcf_coll)}")
         print(
             (
                 f"   sector {lcf_coll[-1].meta['SECTOR']}: \t"
@@ -458,7 +483,9 @@ def filter_by_priority(
         # We might want it to be an option specified by the user.
         res_t.add_row(mission_t[0])
 
-    return lk.SearchResult(table=res_t)
+    sr = lk.SearchResult(table=res_t)
+    sr = _sort_chronologically(sr)
+    return sr
 
 
 # Download TPF asynchronously
@@ -476,6 +503,7 @@ def search_and_download_tpf(*args, **kwargs):
     download_dir = kwargs.pop("download_dir", None)
     quality_bitmask = kwargs.pop("quality_bitmask", None)
     sr = lk.search_targetpixelfile(*args, **kwargs)  # pass the rest of the argument to search_targetpixelfile
+    sr = _sort_chronologically(sr)
     tpf_coll = sr.download_all(download_dir=download_dir, quality_bitmask=quality_bitmask)
     return tpf_coll, sr
 
@@ -850,7 +878,7 @@ def estimate_snr(
         cdpp_kwargs = dict()
 
     cadence = estimate_cadence(lc, unit=u.min)
-    transit_window = math.ceil(signal_duration / cadence)
+    transit_window = int(np.ceil((signal_duration / cadence).decompose()))
 
     savgol_window = transit_window * savgol_to_transit_window_ratio
     if savgol_window % 2 == 0:
@@ -870,6 +898,7 @@ def estimate_snr(
     else:
         diagnostics = cdpp_kwargs.copy()
         diagnostics["cdpp"] = cdpp
+        diagnostics["cadence"] = cadence
         return snr, diagnostics
 
 
@@ -1101,16 +1130,21 @@ def bin_flux(lc, columns=["flux", "flux_err"], **kwargs):
     return lc_subset.bin(**kwargs)
 
 
-def abbrev_sector_list(lcc_or_sectors):
+def abbrev_sector_list(lcc_or_sectors_or_lc_or_sr):
     """Abbreviate a list of sectors, e.g., `1,2,3, 9` becomes `1-3, 9`."""
 
-    # OPEN 1: consider to handle SearchResult as well, in addition to
-    #         array like numbers, LightCurveCollection and TargetPixelFileCollection
-    # OPEN 2: consider to handle Kepler quarter / K2 campaign.
+    # OPEN: consider to handle Kepler quarter / K2 campaign.
 
-    sectors = lcc_or_sectors
-    if isinstance(sectors, lk.collections.Collection):  # LC / TPF collection
-        sectors = [lc.meta.get("SECTOR") for lc in lcc_or_sectors]
+    sectors = lcc_or_sectors_or_lc_or_sr
+    if sectors is None:
+        sectors = []
+    elif isinstance(sectors, lk.collections.Collection):  # LC / TPF collection
+        sectors = [lc.meta.get("SECTOR") for lc in lcc_or_sectors_or_lc_or_sr]
+    elif isinstance(sectors, lk.LightCurve):
+        sectors = sectors.meta.get("SECTORS", [sectors.meta.get("SECTOR")])  # case my custom stitched lc that has SECTORS meta
+    elif isinstance(sectors, lk.SearchResult):
+        sectors = [s for s in sectors.table["sequence_number"]]
+    # else it's assumed to be a list of sector number
 
     sectors = sectors.copy()
     sectors.sort()
@@ -1161,9 +1195,50 @@ def to_lightcurve_with_custom_aperture(tpf, aperture_mask, background_mask):
     return corrected_lc, aperture_lc, background_lc
 
 
+def to_mask_in_pixel_coordinate(lc_or_tpf, mask=None):
+    """Convert the given aperture mask to the form of CCD pixel coordinate array.
+    The CDD pixel coordinate array form is used by some programs, such as triceratops.
+    """
+
+    def get_mask_coord_ref_tpf(tpf, mask):
+        if mask is None:  # default to pipeline mask
+            mask = tpf.pipeline_mask
+
+        row_base, col_base = tpf.row, tpf.column
+        return mask, row_base, col_base
+
+    def get_mask_coord_ref_lc(lc, mask):
+        # TODO: the logic probably only works for TESS SPOC LC fits, maybe Kepler or QLP too.
+        with fits.open(lc.filename) as hdul:
+            row_base, col_base = hdul[2].header.get("CRVAL2P "), hdul[2].header.get("CRVAL1P ")
+            if mask is None:
+                # the data encodes the aperture pixel, background pixels, etc.
+                # convert it into aperture mask
+                pixels = hdul[2].data
+                mask = pixels == np.max(pixels)
+
+        return mask, row_base, col_base
+
+    if isinstance(lc_or_tpf, lk.targetpixelfile.TargetPixelFile):
+        mask, row_base, col_base = get_mask_coord_ref_tpf(lc_or_tpf, mask)
+    elif isinstance(lc_or_tpf, lk.LightCurve):
+        mask, row_base, col_base = get_mask_coord_ref_lc(lc_or_tpf, mask)
+    else:
+        raise ValueError(f"Only LightCurve or TPF is supported. {type(lc_or_tpf)}")
+
+    num_rows, num_cols = mask.shape
+    res = []
+    for y in range(0, num_rows):
+        for x in range(0, num_cols):
+            if mask[y][x]:
+                res.append([col_base + x, row_base + y])
+    return np.array(res)
+
+
 #
 # Astropy extension
 #
+
 
 # Specify / display time delta in hours
 # useful for specifying / displaying planet transits
@@ -1219,6 +1294,7 @@ def search_nearby(
     pm_range_fraction=None,
     pmra_limit_column="pmRA",
     pmdec_limit_column="pmDE",
+    warn_if_all_filtered=True,  # warn if PM/Mag filter filters outs all query result
 ):
     """Stars around the given coordinate from Gaia DR2/EDR3, etc."""
 
@@ -1243,6 +1319,7 @@ def search_nearby(
     if len(result) < 1:  # handle no search result case
         return None
     result = result[catalog_name]
+    result_pre_filter = result
 
     if magnitude_lower_limit is not None:
         result = result[(magnitude_lower_limit <= result[magnitude_limit_column]) | result[magnitude_limit_column].mask]
@@ -1273,5 +1350,8 @@ def search_nearby(
     for col in ["separation", "RPmag", "Gmag", "BPmag", "BP-RP", "GRVSmag"]:
         if col in result.colnames:
             result[col].info.format = ".3f"
+
+    if warn_if_all_filtered and len(result) == 0 and len(result_pre_filter) > 0:
+        warnings.warn(f"All query results filtered due to mag/PM filter. Num. of entries pre-filter: {len(result_pre_filter)}")
 
     return result
