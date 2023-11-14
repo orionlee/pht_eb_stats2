@@ -253,14 +253,15 @@ def display_details(tic_id, type="tic_meta", brief=True):
         img_url = f"https://panoptes-uploads.zooniverse.org/subject_location/{row_catalog['best_subject_img_id']}.png"
         display(Image(url=img_url))
 
-        df_tic = get_catalog("tic_meta")
-        row_tic = df_tic[df_tic["ID"] == tic_id].iloc[0]
-        display(plot_tic_on_hr(row_tic).get_figure())
+        display(plot_tic_on_hr(tic_id).get_figure())
 
     return display(grid)
 
 
-def plot_tic_on_hr(row_tic):
+def plot_tic_on_hr(tic_id):
+    df_tic = get_catalog("tic_meta")
+    row_tic = df_tic[df_tic["ID"] == tic_id].iloc[0]
+
     df_hr = get_catalog("hr")
 
     ax = plt.figure().gca()
@@ -270,7 +271,12 @@ def plot_tic_on_hr(row_tic):
     ax.set_xlabel("Teff (K)")
     ax.set_ylabel("Luminosity (sun)")
 
-    ax.scatter(row_tic["Teff"], row_tic["lum"], s=128, c="red", marker="X")
+    if np.isfinite(row_tic["Teff"]) and np.isfinite(row_tic["lum"]):
+        ax.scatter(row_tic["Teff"], row_tic["lum"], s=128, c="red", marker="X")
+    else:
+        print(f"WARN Cannot plot TIC {row_tic['ID']} on H-R diagram. Missing  Teff and/or Luminosity. "
+              f"""Teff={row_tic["Teff"]}, lum={row_tic["lum"]}"""
+              )
     ax.set_title(f"TIC {row_tic['ID']}")
 
     return ax
