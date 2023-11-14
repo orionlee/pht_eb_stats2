@@ -51,13 +51,18 @@ def display_all_meta_highlights(all_meta):
     gaia_header = "### Gaia DR3 / DR3 Variable"
     if len(all_meta.gaia) > 0:
         gaia_id = all_meta.gaia["Source"].iloc[0]
-        gaia_header = f"{gaia_header}&emsp;[live](https://vizier.cds.unistra.fr/viz-bin/VizieR-S?Gaia%20DR3%20{gaia_id})"
+        # The long URL includes both Gaia DR3 main and astrophysical parameters, with custom set of columns.
+        # It replaced the simple
+        #   f"https://vizier.cds.unistra.fr/viz-bin/VizieR-S?Gaia%20DR3%20{gaia_id}"
+        gaia_dr3_url = f"https://vizier.cds.unistra.fr/viz-bin/VizieR-4?-ref=VIZ6553efc5ee22b&-to=-4b&-from=-3&-this=-4&%2F%2Fsource=%2BI%2F355%2Fgaiadr3%2BI%2F355%2Fparamp&%2F%2Fc=07%3A43%3A56.28+-60%3A23%3A47&%2F%2Ftables=I%2F355%2Fgaiadr3&%2F%2Ftables=I%2F355%2Fparamp&-out.max=50&%2F%2FCDSportal=http%3A%2F%2Fcdsportal.u-strasbg.fr%2FStoreVizierData.html&-out.form=HTML+Table&-out.add=_r&%2F%2Foutaddvalue=default&-sort=_r&-order=I&-oc.form=sexa&-out.src=I%2F355%2Fgaiadr3%2CI%2F355%2Fparamp&-nav=cat%3AI%2F355%26tab%3A%7BI%2F355%2Fgaiadr3%7D%26tab%3A%7BI%2F355%2Fparamp%7D%26key%3Asource%3D%2BI%2F355%2Fgaiadr3%2BI%2F355%2Fparamp%26key%3Ac%3D07%3A43%3A56.28+-60%3A23%3A47%26pos%3A07%3A43%3A56.28+-60%3A23%3A47%28+15+arcsec%29%26HTTPPRM%3A&-c=07%3A43%3A56.28+-60%3A23%3A47&-c.eq=J2000&-c.r=+15&-c.u=arcsec&-c.geom=r&-source=&-x.rs=10&-source=I%2F355%2Fgaiadr3+I%2F355%2Fparamp&-out.orig=standard&-out=RA_ICRS&-out=DE_ICRS&-out=Source&Source={gaia_id}&-out=Plx&-out=PM&-out=pmRA&-out=pmDE&-out=sepsi&-out=RUWE&-out=Dup&-out=Gmag&-out=BPmag&-out=RPmag&-out=BP-RP&-out=RV&-out=e_RV&-out=Vbroad&-out=GRVSmag&-out=VarFlag&-out=NSS&-out=XPcont&-out=XPsamp&-out=RVS&-out=EpochPh&-out=EpochRV&-out=MCMCGSP&-out=MCMCMSC&-out=Teff&-out=logg&-out=%5BFe%2FH%5D&-out=Dist&-out=A0&-out=HIP&-out=PS1&-out=SDSS13&-out=SKYM2&-out=TYC2&-out=URAT1&-out=AllWISE&-out=APASS9&-out=GSC23&-out=RAVE5&-out=2MASS&-out=RAVE6&-out=RAJ2000&-out=DEJ2000&-out=Pstar&-out=PWD&-out=Pbin&-out=ABP&-out=ARP&-out=GMAG&-out=Rad&-out=SpType-ELS&-out=Rad-Flame&-out=Lum-Flame&-out=Mass-Flame&-out=Age-Flame&-out=Flags-Flame&-out=Evol&-out=z-Flame&-meta.ucd=2&-meta=1&-meta.foot=1&-usenav=1&-bmark=GET"
+        gaia_header = f"{gaia_header}&emsp;[live]({gaia_dr3_url})"
         if not pd.isna(all_meta.gaia["Class"].iloc[0]):
             gaia_dr3_var_url = f"https://vizier.cds.unistra.fr/viz-bin/VizieR-4?-ref=VIZ63a395c22729a4&-to=-4b&-from=-4&-this=-4&%2F%2Fsource=I%2F358%2Fvclassre&%2F%2Ftables=I%2F358%2Fvarisum&%2F%2Ftables=I%2F358%2Fvclassre&%2F%2Ftables=I%2F358%2Fveb&%2F%2Ftables=I%2F358%2Fvst&-out.max=50&%2F%2FCDSportal=http%3A%2F%2Fcdsportal.u-strasbg.fr%2FStoreVizierData.html&-out.form=HTML+Table&%2F%2Foutaddvalue=default&-order=I&-oc.form=sexa&-nav=cat%3AI%2F358%26tab%3A%7BI%2F358%2Fvarisum%7D%26tab%3A%7BI%2F358%2Fvclassre%7D%26tab%3A%7BI%2F358%2Fveb%7D%26tab%3A%7BI%2F358%2Fvst%7D%26key%3Asource%3DI%2F358%2Fvclassre%26HTTPPRM%3A&-c=&-c.eq=J2000&-c.r=++2&-c.u=arcmin&-c.geom=r&-source=&-source=+I%2F358%2Fvarisum+I%2F358%2Fvclassre+I%2F358%2Fveb+I%2F358%2Fvst&-out.src=I%2F358%2Fvclassre&-out.orig=standard&-out=Source&-out=SolID&-out=Classifier&-out=Class&-out=ClassSc&-out=RA_ICRS&-out=DE_ICRS&-out=_RA.icrs&-out=_DE.icrs&-meta.ucd=2&-meta=1&-meta.foot=1&-usenav=1&-bmark=GET&Source={gaia_id}"
             gaia_header = f"{gaia_header} , [variable]({gaia_dr3_var_url})"
     display(Markdown(gaia_header))
     display_no_index(all_meta.gaia[[
-        "Source", "RAJ2000", "DEJ2000", "Gmag",  "BP-RP", "Teff", "RUWE", "sepsi", "Dup", "Class", "ClassSc",
+        "Source", "RAJ2000", "DEJ2000", "Gmag",  "BP-RP", "Teff", "RUWE", "sepsi", "e_RV", "Dup", "Class", "ClassSc",
+        # column "NSS" would be helpful too but it is not in downloaded meta
         ]])
 
 
