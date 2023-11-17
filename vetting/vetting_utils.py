@@ -74,6 +74,8 @@ def _tce_reference_name_with_year(publication_year):
 BIBS = SimpleNamespace(
     TESS_N="Ricker, G. R.; et al., 2014, Transiting Exoplanet Survey Satellite (TESS)",
     TESS_B="2014SPIE.9143E..20R",
+    TESS_SPOC_N="Caldwell, D. A.; et al., 2020, TESS Science Processing Operations Center FFI Target List Products",
+    TESS_SPOC_B="2020RNAAS...4..201C",
     QLP_N="Huang, C. X.; et al., 2020, Photometry of 10 Million Stars from the First Two Years of TESS Full Frame Images: Part I",
     QLP_B="2020RNAAS...4..204H",
     TCE_N=_tce_reference_name_with_year,
