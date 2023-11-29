@@ -5,7 +5,7 @@ description = "Planet Hunters TESS Eclipsing Binary Candidates"
 license = "MIT"
 authors = ["Sam Lee"]
 readme = "README.md"
-repository = ""
+repository = "https://github.com/orionlee/pht_eb_stats2"
 keywords = ["NASA", "TESS", "Astronomy", "Variable Star", "Eclipsing Binary", "Lightcurve"]
 # Indicate to poetry that this is not a python package
 #  https://github.com/python-poetry/poetry/issues/1148#issuecomment-501462169
@@ -26,8 +26,8 @@ ipywidgets = { version = "^7.7.1", optional = true }  # for notebook dashboard
 matplotlib = { version = "^3.5.2", optional = true }  # for notebook dashboard
 memoization = { version = "^0.4.0", optional = true }  # for notebook dashboard
 tabulate = { version = "^0.8.10", optional = true }  # for dataframe.to_markdown()
-lightkurve = { version="^2.3.0, optional = true }  # for vetting individual EBs
-xmltodict = { version="^0.13.0, optional = true }  # for vetting individual EBs
+lightkurve = { version="^2.3.0", optional = true }  # for vetting individual EBs
+xmltodict = { version="^0.13.0", optional = true }  # for vetting individual EBs
 ipympl = { version = "^0.9.2", optional = true }  # for vetting individual EBs (interactive matplotlib, extra optional)
 beautifulsoup4 = { version="^4.11.1", optional = true }  # for supplementary data (live TESS EB data)
 
