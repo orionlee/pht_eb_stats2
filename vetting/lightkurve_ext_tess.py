@@ -346,10 +346,6 @@ def get_tic_meta_in_html(lc_or_tic, a_subject_id=None, download_dir=None, tce_fi
 
     html = f"""
 <div id="tic_metadata_ctr">
-<div id="tic_metadata_ctl">
-    <span id="float_expand_toggle" title="Toggle whether the metadata is shown or not"></span>
-    <span id="float_fixed_toggle" title="Toggle whether the metadata is shown in a floating box or a regular cell"></span>
-</div>
 <div id="tic_metadata_body">
 <h3>TIC {tic_id}</h3>
 """
@@ -390,79 +386,6 @@ def get_tic_meta_in_html(lc_or_tic, a_subject_id=None, download_dir=None, tce_fi
     html += """
 </div> <!-- id="tic_metadata_body" -->
 </div> <!--  id="tic_metadata_ctr" -->
-<style id="tic_metadata_out_style">
-    #tic_metadata_ctr.float {
-        position: fixed;
-        bottom: 12px;
-        right: 36px;
-        z-index: 999;
-        background-color: rgba(255, 255, 0, 0.3);
-        padding: 6px;
-        max-height: 75vh;  /* ensure for TIC with large number of TCEs, the floating box won't fill up too much space */
-        overflow-y: scroll;
-    }
-
-    #tic_metadata_ctl {
-        margin-left: 12em; /* make it roughly to the left of TIC heading */
-    }
-    #tic_metadata_ctr.float #tic_metadata_ctl {
-        margin-left: 0;
-        float: right;
-    }
-    #tic_metadata_ctr.float:hover { /* on hover, make it stand out more by decreasing transparency */
-        background-color: rgba(255, 255, 127, 0.9);
-    }
-
-    #float_fixed_toggle {
-        cursor: pointer;
-        padding: 6px;
-        font-size: 16px;
-        font-weight: normal;
-    }
-    #float_fixed_toggle:before {
-        content: "[To float >]";
-    }
-    #tic_metadata_ctr.float #float_fixed_toggle:before {
-        content: "[X]";
-    }
-
-    #float_expand_toggle {
-        cursor: pointer;
-        padding: 6px;
-        font-size: 16px;
-        font-weight: normal;
-        margin-left: 10px;
-    }
-
-    #tic_metadata_ctr.float #float_expand_toggle:before {
-        content: "<<";
-    }
-
-    #tic_metadata_ctr.float.expand #float_expand_toggle:before {
-        content: ">>";
-    }
-
-    #tic_metadata_ctr.float #tic_metadata_body {
-        display: none;
-    }
-
-    #tic_metadata_ctr.float.expand #tic_metadata_body {
-        display: block;
-    }
-
-</style>
-<script>
-    document.getElementById("float_fixed_toggle").onclick = function(evt) {
-        const ctr = document.getElementById("tic_metadata_ctr");
-        ctr.classList.toggle("float");
-        if (ctr.classList.contains("float")) {
-            ctr.classList.add("expand");
-        }
-};
-    document.getElementById("float_expand_toggle").onclick = function(evt) {
-        document.getElementById("tic_metadata_ctr").classList.toggle("expand");
-};
-</script>
 """
     return html
 
@@ -1084,3 +1007,25 @@ def search_tesseb_of_tics(
         return result_all_columns, result, html
     else:
         return result_all_columns, result
+
+
+def search_kelt_fp_of_tics(targets, kelt_fp_csv_path="data/kelt_fps.csv"):
+    if not isinstance(targets, (Sequence, np.ndarray)):
+        targets = [targets]
+
+    targets = [int(t) for t in targets]
+
+    df = pd.read_csv(kelt_fp_csv_path)
+    res = df[df["TIC"].isin(targets)]
+    return res
+
+
+def download_kelt_fps_as_csv(kelt_fp_csv_path="data/kelt_fps.csv"):
+    v = Vizier()
+    v.ROW_LIMIT = -1
+    # KELT transit false positive catalog for TESS (Collins+, 2018)
+    #   https://vizier.cds.unistra.fr/viz-bin/VizieR?-source=J/AJ/156/234
+    tb_kelt_fp = v.get_catalogs("J/AJ/156/234")[0]
+    df_kelt_fp = tb_kelt_fp.to_pandas()
+    df_kelt_fp.to_csv(kelt_fp_csv_path, index=False)
+    return df_kelt_fp

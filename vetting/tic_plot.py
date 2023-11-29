@@ -269,6 +269,7 @@ def plot_n_annotate_lcf(
     flux_col="flux",
     xmin=None,
     xmax=None,
+    truncate_extra_buffer_time=0.0,
     t0=None,
     t_start=None,
     t_end=None,
@@ -315,13 +316,15 @@ def plot_n_annotate_lcf(
     if xmax is None and t_end is not None:
         xmax = t_end + 0.5
 
-    # implement xmin / xmax by limiting the LC itself, rather than using ax.set_xlim after the plot
+    # truncate the LC approximately around xmin/xmax, so that
     # - the Y-scale will then automatically scaled to the specified time range, rather than over entire lightcurve
     # - make plotting faster (fewer data points)
-    if xmin is not None:
-        lc = lc[lc.time.value >= xmin]
-    if xmax is not None:
-        lc = lc[lc.time.value <= xmax]
+    # - Some extra buffer is added so that if users want to tweak xmin/xmax afterwards
+    #   the data right outside xmin/xmax range would still be available for plots.
+    if xmin is not None or xmax is not None:
+        trunc_min = xmin - truncate_extra_buffer_time if xmin is not None else None
+        trunc_max = xmax + truncate_extra_buffer_time if xmax is not None else None
+        lc = lc.truncate(trunc_min, trunc_max)
 
     if lc_tweak_fn is not None:
         lc = lc_tweak_fn(lc)
@@ -422,6 +425,7 @@ def plot_n_annotate_lcf(
         ax.set_title(title_text, {"fontsize": title_fontsize})
     ax.legend(**legend_kwargs)
 
+    ax.set_xlim(xmin, xmax)
     _add_flux_origin_to_ylabel(ax, lc)
 
     ax.xaxis.label.set_size(18)
@@ -1129,7 +1133,7 @@ def plot_skip_data_gap(lc, wspace=0.2, figsize=(16, 4), data_gap_min_days=10, **
 
     xlabel_text = ""
     for i, (ax, interval) in enumerate(zip(axs, intervals)):
-        lc.truncate(interval[0], interval[1] + 0.0001).scatter(ax=ax, **kwargs)
+        scatter(lc.truncate(interval[0], interval[1] + 0.0001), ax=ax, **kwargs)
 
         # add sector start marker(s) to the current ax when in range
         while len(tstart_sector_list) > 0:
@@ -1501,14 +1505,30 @@ def fold_and_plot(lc, period, epoch_time, flux_in_mag=False, **kwargs):
     return plot_n_annotate_folded(lc_f, **kwargs), lc_f
 
 
-def fold_and_plot_odd_even(lc, period, epoch_time, figsize=(10, 5), title_extra=""):
+def fold_and_plot_odd_even(
+    lc, period, epoch_time, figsize=(10, 5), title_extra="", scatter_odd_kwargs={}, scatter_even_kwargs={}
+):
+    def put_if_not_exist(dict_obj, defaults):
+        num_values_added = 0
+        for key, val in defaults.items():
+            if key not in dict_obj.keys():
+                dict_obj[key] = val
+                num_values_added += 1
+        return num_values_added
+
     lc_folded = lc.fold(period=period, epoch_time=epoch_time, epoch_phase=0)
+
+    # apply default scatter arguments
+    scatter_odd_kwargs = scatter_odd_kwargs.copy()
+    scatter_even_kwargs = scatter_even_kwargs.copy()
+    put_if_not_exist(scatter_odd_kwargs, dict(s=4, c="r", marker=".", label="odd"))
+    put_if_not_exist(scatter_even_kwargs, dict(s=4, c="b", marker="x", label="even"))
 
     ax = lk_ax(figsize=figsize)
     lc_f_odd = lc_folded[lc_folded.odd_mask]
-    lc_f_odd.scatter(ax=ax, c="r", label="odd", marker=".", s=4)
+    lc_f_odd.scatter(ax=ax, **scatter_odd_kwargs)
     lc_f_even = lc_folded[lc_folded.even_mask]
-    lc_f_even.scatter(ax=ax, c="b", label="even", marker="x", s=4)
+    lc_f_even.scatter(ax=ax, **scatter_even_kwargs)
 
     pct01_odd = np.nanpercentile(lc_f_odd.flux, 0.1)
     pct01_even = np.nanpercentile(lc_f_even.flux, 0.1)
@@ -1534,11 +1554,11 @@ def fold_and_plot_odd_even(lc, period, epoch_time, figsize=(10, 5), title_extra=
     return ax, lc_folded
 
 
-def fold_2x_periods_and_plot(lc, period, epoch_time, figsize=(10, 5), title_extra=""):
+def fold_2x_periods_and_plot(lc, period, epoch_time, figsize=(10, 5), title_extra="", scatter_kwargs={}):
     lc_folded = lc.fold(period=period * 2, epoch_time=epoch_time, epoch_phase=period / 2)
 
     ax = lk_ax(figsize=figsize)
-    lc_folded.scatter(ax=ax)
+    lc_folded.scatter(ax=ax, **scatter_kwargs)
 
     ax.legend()
     ax.xaxis.set_label_text(
@@ -2268,7 +2288,7 @@ def plot_pixel_level_LC(
             ii = arrshape[1] - 1 - i  # we want to plot this such that the pixels increase from left to right and bottom to top
 
             for j in range(0, arrshape[2]):
-                apmask = np.zeros(arrshape[1:], dtype=np.int)
+                apmask = np.zeros(arrshape[1:], dtype=int)
                 apmask[i, j] = 1
                 apmask = apmask.astype(bool)
 
