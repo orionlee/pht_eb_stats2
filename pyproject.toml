@@ -29,7 +29,12 @@ tabulate = { version = "^0.8.10", optional = true }  # for dataframe.to_markdown
 lightkurve = { version="^2.3.0", optional = true }  # for vetting individual EBs
 xmltodict = { version="^0.13.0", optional = true }  # for vetting individual EBs
 ipympl = { version = "^0.9.2", optional = true }  # for vetting individual EBs (interactive matplotlib, extra optional)
-beautifulsoup4 = { version="^4.11.1", optional = true }  # for supplementary data (live TESS EB data)
+beautifulsoup4 = { version="^4.11.1", optional = true }  # for supplementary data used in vetting (live TESS EB data)
+
+[tool.poetry.extras]
+dashboard = ["notebook", "ipywidgets", "matplotlib", "memoization", "tabulate"]
+vetting = ["lightkurve", "xmltodict", "ipympl", "beautifulsoup4"]
+
 
 [tool.poetry.dev-dependencies]
 black = ">=22.3.0"
