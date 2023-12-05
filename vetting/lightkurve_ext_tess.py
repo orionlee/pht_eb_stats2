@@ -831,14 +831,14 @@ def search_gaiadr3_of_tics(
             "Plx",
             "pmRA",
             "pmDE",
-            "GRVSmag",  # Gaia DR3 Gmag from Radial Velocity spectrometer
             "VarFlag",  # Gaia DR3: variability
-            "EpochPh",  # Gaia DR3: 1 if epoch photometry is available
             "RV",  # Gaia DR3
             "e_RV",  # Gaia DR3, e_RV > 1.5 km/s also possibly signifies non single star
-            "EpochRV",  # Gaia DR3
+            "IPDfmp",  # Gaia DR3, Percent of successful-IPD windows with more than one peak. High => possibly visually double
             "Dup",  # Gaia DR3: if there are multiple source/Gaia DR3 entries for the same target
             "Source",
+            "EpochPh",  # Gaia DR3: 1 if epoch photometry is available
+            "EpochRV",  # Gaia DR3: 1 if epoch RV is available
         ]
         if not add_target_as_col:
             result.remove_column("target")
@@ -877,6 +877,7 @@ def search_gaiadr3_of_tics(
                 )
                 for i in range(0, len(result_all_columns)):
                     html_inner = f"RUWE: {result_all_columns[i]['RUWE']}, astrometric excess noise significance: {result_all_columns[i]['sepsi']:.3f}, e_RV: {result_all_columns[i]['e_RV']:.2f} km/s"
+                    html_inner += f"; ipd_frac_multi_peak: {result_all_columns[i]['IPDfmp']}%"
                     nss_flag = result_all_columns[i]["NSS"]
                     if nss_flag > 0:
                         html_inner += f"; NSS: {nss_flag} ({decode_gaiadr3_nss_flag(nss_flag)})"
