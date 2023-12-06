@@ -187,17 +187,13 @@ def join_pht_eb_candidate_catalog_with(aux_catalogs, df_pht=None):
         if aux_cat == "tesseb":
             df_aux = tesseb_meta.load_tesseb_meta_table_from_file(add_convenience_columns=True, one_row_per_tic_only=True)
             df_pht = left_outer_join_by_column_merge(
-                df_pht, df_aux,
-                join_col_main="tic_id", join_col_aux="TIC",
-                prefix_aux="TESSEB"
-                )
+                df_pht, df_aux, join_col_main="tic_id", join_col_aux="TIC", prefix_aux="TESSEB"
+            )
         elif aux_cat == "gaia":
             df_aux = gaia_meta.load_gaia_dr3_meta_table_from_file(add_variable_meta=True)
             df_pht = left_outer_join_by_column_merge(
-                df_pht, df_aux,
-                join_col_main="tic_id", join_col_aux="TIC_ID",
-                prefix_aux="GAIA"
-                )
+                df_pht, df_aux, join_col_main="tic_id", join_col_aux="TIC_ID", prefix_aux="GAIA"
+            )
             # Misc. type fixing after join
             as_nullable_int(df_pht, ["GAIA_Source", "GAIA_SolID"])  # some cells is NA, so convert it to nullable integer
 
@@ -258,7 +254,7 @@ def display_details(tic_id, type="tic_meta", brief=True):
     return display(grid)
 
 
-def plot_tic_on_hr(tic_id):
+def plot_tic_on_hr(tic_id, teff=None, lum=None):
     df_tic = get_catalog("tic_meta")
     row_tic = df_tic[df_tic["ID"] == tic_id].iloc[0]
 
@@ -271,12 +267,17 @@ def plot_tic_on_hr(tic_id):
     ax.set_xlabel("Teff (K)")
     ax.set_ylabel("Luminosity (sun)")
 
-    if np.isfinite(row_tic["Teff"]) and np.isfinite(row_tic["lum"]):
-        ax.scatter(row_tic["Teff"], row_tic["lum"], s=128, c="red", marker="X")
+    if teff is None:
+        teff = row_tic["Teff"]
+    if lum is None:
+        lum = row_tic["lum"]
+    if np.isfinite(teff) and np.isfinite(lum):
+        ax.scatter(teff, lum, s=128, c="red", marker="X")
     else:
-        print(f"WARN Cannot plot TIC {row_tic['ID']} on H-R diagram. Missing  Teff and/or Luminosity. "
-              f"""Teff={row_tic["Teff"]}, lum={row_tic["lum"]}"""
-              )
+        print(
+            f"WARN Cannot plot TIC {row_tic['ID']} on H-R diagram. Missing  Teff and/or Luminosity. "
+            f"""Teff={teff}, lum={lum}"""
+        )
     ax.set_title(f"TIC {row_tic['ID']}")
 
     return ax
@@ -337,7 +338,9 @@ def style(df_catalog, show_thumbnail=False):
     def make_tic_id_clickable_to_vetting_doc(val):
         # Vetting_URL column is populated with tic id so as to construct links to vetting notebook
         return make_clickable(
-            val, "https://colab.research.google.com/github/orionlee/pht_eb_stats2/blob/main/vetting/EB_V_%s.ipynb", "_tesseb",
+            val,
+            "https://colab.research.google.com/github/orionlee/pht_eb_stats2/blob/main/vetting/EB_V_%s.ipynb",
+            "_tesseb",
             link_text_func=lambda val: "vetting doc",
         )
 
