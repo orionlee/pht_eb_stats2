@@ -46,10 +46,10 @@ def _load_gaia_dr3_xmatch_table_from_file(csv_path="cache/gaia_dr3_tics_xmatch.c
     df = pd.read_csv(
         csv_path,
         dtype={
-            # force large integer IDs to use non-nullable int64
+            # force large integer IDs to use non-nullable uint64  (use uint rather than int to be safe)
             # use non-nullable because they are required ids in Gaia
-            "Source": "int64",
-            "SolID": "int64",
+            "Source": "uint64",
+            "SolID": "uint64",
         },
         keep_default_na=True,
     )
@@ -88,7 +88,7 @@ class MatchResult(xmatch_util.AbstractMatchResult):
 
 def _calc_matches(row_gaia, row_tic, tic_band_preference_map):
     max_mag_diff = 1.0
-    max_pmra_diff_pct =  25
+    max_pmra_diff_pct = 25
     max_pmdec_diff_pct = 25
     max_plx_diff_pct = 25
 
@@ -116,19 +116,21 @@ def _calc_matches(row_gaia, row_tic, tic_band_preference_map):
     mag_match = True if mag_diff <= max_mag_diff else False
 
     pm_match, pmra_diff_pct, pmdec_diff_pct = xmatch_util.calc_pm_matches(
-        row_tic, row_gaia["pmRA"], row_gaia["pmDE"],
-        max_pmra_diff_pct=max_pmra_diff_pct, max_pmdec_diff_pct=max_pmdec_diff_pct
-        )
-
-    plx_match, plx_diff_pct = xmatch_util.calc_scalar_matches(
-        row_tic, "plx", row_gaia["Plx"], max_diff_pct=max_plx_diff_pct
+        row_tic, row_gaia["pmRA"], row_gaia["pmDE"], max_pmra_diff_pct=max_pmra_diff_pct, max_pmdec_diff_pct=max_pmdec_diff_pct
     )
 
+    plx_match, plx_diff_pct = xmatch_util.calc_scalar_matches(row_tic, "plx", row_gaia["Plx"], max_diff_pct=max_plx_diff_pct)
+
     return MatchResult(
-        mag_match, band_tic, mag_diff,
-        pm_match, pmra_diff_pct, pmdec_diff_pct,
-        plx_match, plx_diff_pct,
-        )
+        mag_match,
+        band_tic,
+        mag_diff,
+        pm_match,
+        pmra_diff_pct,
+        pmdec_diff_pct,
+        plx_match,
+        plx_diff_pct,
+    )
 
 
 def _calc_matches_for_all(df: pd.DataFrame, df_tics: pd.DataFrame):
@@ -193,7 +195,7 @@ def load_gaia_dr3_meta_table_from_file(csv_path="../data/gaia_dr3_meta.csv", add
     # the final ASAS-SN meta table is so similar to the interim crossmatch table
     # that the logic can be reused
     df = _load_gaia_dr3_xmatch_table_from_file(csv_path)
-    if (add_variable_meta):
+    if add_variable_meta:
         df_var = load_gaia_dr3_var_meta_table_from_file()
         df = _join_gaia_meta_with_var_meta(df, df_var)
     return df
@@ -216,12 +218,16 @@ def _join_gaia_meta_with_var_meta(df_main, df_var):
 # Gaia DR# Variable crossmatch
 #
 
+
 def _get_gaia_dr3_var_meta_of_gaia_ids(gaia_ids, **kwargs):
     # Vizier requires a list of TIC in string (the leading zero is not needed, however)
     gaia_ids = [str(t) for t in gaia_ids]
 
-    GAIA_DR3_VAR_RESULT_CATALOG = "I/358/vclassre" # only the classification result, but not any specifics
-    columns = ["*", "ClassSc", ]  # include score of the best class
+    GAIA_DR3_VAR_RESULT_CATALOG = "I/358/vclassre"  # only the classification result, but not any specifics
+    columns = [
+        "*",
+        "ClassSc",
+    ]  # include score of the best class
     vizier = Vizier(catalog=GAIA_DR3_VAR_RESULT_CATALOG, columns=columns)
     vizier.ROW_LIMIT = -1  # it is not necessary in practice, but to be on the safe side.
     vizier.TIMEOUT = 60 * 30  # elapsed time for 1000 ids is about 11 min.
@@ -239,7 +245,6 @@ def _save_gaia_dr3_var_meta(meta_table, csv_mode="w"):
 
 
 def _get_and_save_gaia_dr3_var_meta_of_all(dry_run=False, dry_run_size=1000, chunk_size=1000):
-
     # get the Gaia DR3 Ids, use only those that are known to be variable
     df = load_gaia_dr3_meta_table_from_file()[["Source", "VarFlag"]]
     df = df[df["VarFlag"] == "VARIABLE"]
@@ -258,7 +263,7 @@ def _get_and_save_gaia_dr3_var_meta_of_all(dry_run=False, dry_run_size=1000, chu
 
     num_fetched = 0
     for idx in range(0, num_chunks):
-        ids_chunk = ids[idx * chunk_size:(idx + 1) * chunk_size]
+        ids_chunk = ids[idx * chunk_size : (idx + 1) * chunk_size]
         print(f"DEBUG  chunk {idx} ; num. ids to send to Vizier: {len(ids_chunk)}")
 
         res = _get_gaia_dr3_var_meta_of_gaia_ids(ids_chunk)
