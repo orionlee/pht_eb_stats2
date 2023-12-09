@@ -78,8 +78,10 @@ def display_all_meta_highlights(all_meta):
     )
 
     gaia_header = "### Gaia DR3 / DR3 Variable"
+    nss_indicators_msg = None
     if len(all_meta.gaia) > 0:
-        gaia_id = all_meta.gaia["Source"].iloc[0]
+        gaia_row = all_meta.gaia.iloc[0]
+        gaia_id = gaia_row["Source"]
         # The long URL includes both Gaia DR3 main and astrophysical parameters, with custom set of columns.
         # It replaced the simple
         #   f"https://vizier.cds.unistra.fr/viz-bin/VizieR-S?Gaia%20DR3%20{gaia_id}"
@@ -88,6 +90,7 @@ def display_all_meta_highlights(all_meta):
         if not pd.isna(all_meta.gaia["Class"].iloc[0]):
             gaia_dr3_var_url = f"https://vizier.cds.unistra.fr/viz-bin/VizieR-4?-ref=VIZ63a395c22729a4&-to=-4b&-from=-4&-this=-4&%2F%2Fsource=I%2F358%2Fvclassre&%2F%2Ftables=I%2F358%2Fvarisum&%2F%2Ftables=I%2F358%2Fvclassre&%2F%2Ftables=I%2F358%2Fveb&%2F%2Ftables=I%2F358%2Fvst&-out.max=50&%2F%2FCDSportal=http%3A%2F%2Fcdsportal.u-strasbg.fr%2FStoreVizierData.html&-out.form=HTML+Table&%2F%2Foutaddvalue=default&-order=I&-oc.form=sexa&-nav=cat%3AI%2F358%26tab%3A%7BI%2F358%2Fvarisum%7D%26tab%3A%7BI%2F358%2Fvclassre%7D%26tab%3A%7BI%2F358%2Fveb%7D%26tab%3A%7BI%2F358%2Fvst%7D%26key%3Asource%3DI%2F358%2Fvclassre%26HTTPPRM%3A&-c=&-c.eq=J2000&-c.r=++2&-c.u=arcmin&-c.geom=r&-source=&-source=+I%2F358%2Fvarisum+I%2F358%2Fvclassre+I%2F358%2Fveb+I%2F358%2Fvst&-out.src=I%2F358%2Fvclassre&-out.orig=standard&-out=Source&-out=SolID&-out=Classifier&-out=Class&-out=ClassSc&-out=RA_ICRS&-out=DE_ICRS&-out=_RA.icrs&-out=_DE.icrs&-meta.ucd=2&-meta=1&-meta.foot=1&-usenav=1&-bmark=GET&Source={gaia_id}"
             gaia_header = f"{gaia_header} , [variable]({gaia_dr3_var_url})"
+        nss_indicators_msg = f"RUWE: {gaia_row['RUWE']}, sepsi: {gaia_row['sepsi']}, e_RV: {gaia_row['e_RV']} km/s ."
     display(Markdown(gaia_header))
     display(  # cannot use display_no_index(), because somehow the Source value would be corrupted with it.
         all_meta.gaia[
@@ -108,6 +111,9 @@ def display_all_meta_highlights(all_meta):
             ]
         ]
     )
+    if nss_indicators_msg is not None:
+        display(Markdown(f"""NSS indicators: `{nss_indicators_msg}`"""))
+
     display(
         Markdown(
             f"""
