@@ -308,7 +308,7 @@ def style(df_catalog, show_thumbnail=False):
         )
 
     def make_simbad_id_clickable(val):
-        return make_clickable(val, "https://simbad.u-strasbg.fr/simbad/sim-basic?Ident=", "_simbad")
+        return make_clickable(val, "https://simbad.u-strasbg.fr/simbad/sim-basic?Ident=", "_simbad", quote_val=True)
 
     def make_vsx_id_clickable(val):
         return make_clickable(val, "https://www.aavso.org/vsx/index.php?view=detail.top&oid=", "_vsx")
