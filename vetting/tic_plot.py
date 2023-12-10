@@ -8,6 +8,7 @@ LightCurveCollection
 from __future__ import annotations
 
 import inspect
+import numbers
 import warnings
 import re
 from types import SimpleNamespace
@@ -1877,6 +1878,10 @@ def interact(
         ll_button = Button(label="<<", button_type="default", width=30)
         pan_amount_input = TextInput(width=100, placeholder="default: plot width")
 
+        def has_data_in_range(start, end):
+            times = lc_source.data["time"]
+            return len(times[(start <= times) & (times <= end)]) > 0
+
         def get_pan_width():
             try:
                 return float(pan_amount_input.value)
@@ -1886,17 +1891,65 @@ def interact(
 
         def pan_left():
             width = get_pan_width()
-            fig_lc.x_range.start = fig_lc.x_range.start - width
-            fig_lc.x_range.end = fig_lc.x_range.end - width
+            new_start = fig_lc.x_range.start - width
+            if not has_data_in_range(new_start, new_start + width):
+                times = lc_source.data["time"]
+                times = times[times < new_start]
+                if len(times) > 0:
+                    new_start = times[0] - 0.2
+                else:
+                    # reached the end of the LC. no panning
+                    return
+            fig_lc.x_range.start = new_start
+            fig_lc.x_range.end = new_start + width
 
         ll_button.on_click(pan_left)
 
         def pan_right():
             width = get_pan_width()
-            fig_lc.x_range.start = fig_lc.x_range.start + width
-            fig_lc.x_range.end = fig_lc.x_range.end + width
+            new_start = fig_lc.x_range.start + width
+            if not has_data_in_range(new_start, new_start + width):
+                times = lc_source.data["time"]
+                times = times[times > new_start]
+                if len(times) > 0:
+                    new_start = times[0] - 0.2
+                else:
+                    # reached the end of the LC. no panning
+                    return
+            fig_lc.x_range.start = new_start
+            fig_lc.x_range.end = new_start + width
 
         rr_button.on_click(pan_right)
+
+        #
+        # Goto specific time widgets / callbacks
+        #
+        goto_input = TextInput(width=150, placeholder="Goto the specified time, can be a Python expression.")
+        goto_btn = Button(label="Goto", button_type="default")
+        goto_err_div = Div(styles={"font-size": "90%", "color": "red", "max-width": "30ch"}, visible=False)
+        goto_div = column(row(goto_input, goto_btn), goto_err_div)
+
+        def pan_to_time():
+            try:
+                time_new = eval(goto_input.value)
+            except BaseException:
+                # invalid expression
+                goto_err_div.visible = True
+                goto_err_div.text = "Invalid expression"
+                return False
+            if not isinstance(time_new, numbers.Number):
+                goto_err_div.visible = True
+                goto_err_div.text = "Must be a number, or an expression that is evaluated to a number."
+                return False
+
+            goto_err_div.text = ""
+            goto_err_div.visible = False
+
+            width = get_pan_width()
+            fig_lc.x_range.start = time_new - width / 2
+            fig_lc.x_range.end = time_new + width / 2
+
+        goto_btn.on_click(pan_to_time)
 
         #
         # Overall layout
@@ -1919,7 +1972,7 @@ def interact(
                 ),
             ),
             Spacer(width=30),
-            column(select_mark_dropdown, out_div),
+            column(goto_div, select_mark_dropdown, out_div),
         )
 
         doc.add_root(doc_layout)
