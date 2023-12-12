@@ -1,4 +1,4 @@
-TIC,Sector Example,PHT Subject Example,In EB Catalogs,Disposition,Type,NegReasons,VSX Submission,In TESSEBs1-26,TESS EB Note,Old Vetting Template,Note,VSX oid,Link to Example,VSX Link,Vetting Batch
+TIC,Sector Example,PHT Subject Example,Is EB In Catalogs,Disposition,Type,NegReasons,VSX Submission,In TESSEBs1-26,TESS EB Note,Old Vetting Template,Note,VSX oid,Link to Example,VSX Link,Vetting Batch
 143669444,7,32026607,F,Unsure,EB:|ELL:,"Type,",,Y,EB or ELL,T,"WIP: Possibly EB  or ELL 
 in VSX as ELL/ACV . Gaia DR3 Variable classifies as SPB.
 SO: It looks like EB or ELL, I would need a phase plot and an idea of the amplitude in mangitudes.",,32026607,,"top 20 , not in other catalogs (SIMBAD, VSX, ASAS-SN; TESSEB is not part of the criteira)"
