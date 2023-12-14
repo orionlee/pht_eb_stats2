@@ -89,8 +89,8 @@ def _add_user_rank_to_subject_user_stats(df_subject_user_stats: pd.DataFrame, df
     df_subject_user_stats.set_index("user_id", drop=False, inplace=True)
     df_user_stats = df_user_stats[["user_id", "user_rank"]]
     df_user_stats.set_index("user_id", drop=True, inplace=True)
+    as_nullable_int(df_user_stats, ["user_rank"])  # some will be NA post join, so make it nullable to prevent corruption
     df = pd.concat([df_subject_user_stats, df_user_stats], join="outer", axis=1)
-    as_nullable_int(df, ["user_rank"])
 
     return df
 

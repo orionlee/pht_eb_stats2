@@ -116,6 +116,8 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000, 
 
     df_vsx.set_index("TIC_ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
     prefix_columns(df_vsx, "VSX", inplace=True)
+    # some values will become NA after the join below, convert it to nullable integer pre-join to prevent any corruption
+    as_nullable_int(df_vsx, ["VSX_OID", "VSX_V"])
 
     df_asas_sn.set_index("TIC_ID", drop=True, inplace=True)  # drop TIC_ID column, as it will be a duplicate in the result
     # Rename the ASASSN-V (primary name used) to Name so that after adding ASASSN prefix,
@@ -127,9 +129,6 @@ def combine_and_save_pht_eb_candidate_catalog(dry_run=False, dry_run_size=1000, 
     prefix_columns(df_tic, "TIC", inplace=True)
 
     df = pd.concat([df_pht, df_simbad, df_vsx, df_asas_sn, df_tic], join="outer", axis=1)
-
-    # Misc. type fixing after concat()
-    as_nullable_int(df, ["VSX_OID", "VSX_V"])  # some cells is NA, so convert it to nullable integer
 
     # The period in ASASSN is numbers, except the special case of "NON PERIODIC"
     # to make the column a float,
@@ -236,7 +235,6 @@ def create_pht_eb_subj_catalog(sector_group_func=None):
 
 def reprocess_all_mapping_and_save_pht_eb_candidate_catalog():
     with tqdm(total=9) as pbar:
-
         pbar.set_description("Reprocessing all mapping to produce the catalog")
 
         pbar.write("PHT per-subject summary")
