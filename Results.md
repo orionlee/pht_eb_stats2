@@ -56,7 +56,7 @@ See [participants dashboard notebook](src/dashboard_participants.ipynb) for more
     * [ ] what is the tagging accuracy?
     * [ ] A number of classifications are treated as no data as they are deemed to be irrelevant in the context of eclipsing binary, e.g., star in SIMBAD, various eruptive / cataclysmic types. Is such treatment appropriate?
 * [ ] Review cross matching (with SIMBAD, etc.) to see if we have included too many invalid ones (false positives) or excluded too many genuine ones (false negatives)
-  * [ ] VSX cross match uses fewer attributes: only coordinates and magnitude.
+  * [ ] When matching plx / PM, consider to use the error supplied in the catalog to determine if it is a match.
 * [ ] Review tag tallying and computation of `eb_score`
   * [ ] Add tags to be counted, in particular, `#EB` and `#E.B.` are employed by some users, but they are not treated as tags in Zooniverse.
     * There are ~3000 such comments, while there are about ~60000 eclipsingbinary comments.
@@ -64,7 +64,7 @@ See [participants dashboard notebook](src/dashboard_participants.ipynb) for more
   * [ ] Handle cases that users tag a subject both as eclipsing binary and transit. (Currently it is treated as a neutral vote)
   * [ ] Consider additional tags counted as dissenting voices. Candidates include `#rr-lyrae` (and possibly other pulsators / rotators)
   * [ ] Should we consider `#contamination` and/or `#NEB` ?
-* [ ] Cross match with Gaia DR3 for variable status, RUWE, etc.
+* [x] Cross match with Gaia DR3 for variable status, RUWE, etc.
 * [ ] Produce a list of vetted candidates.
 
 ## Data Sources / Credits
