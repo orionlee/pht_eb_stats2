@@ -191,11 +191,16 @@ def join_pht_eb_candidate_catalog_with(aux_catalogs, df_pht=None):
             )
         elif aux_cat == "gaia":
             df_aux = gaia_meta.load_gaia_dr3_meta_table_from_file(add_variable_meta=True)
+            # Misc. type fixing before join
+            # Make Source, SolId as Nullable, before joining, as some values will be missing after the join.
+            # The nullable conversion MUST be done before the join.
+            # If it's done after the join, sometimes the GAIA Source becomes corrupted, e.g.,
+            #   - for TIC 272650576, Gaia Source: 1695777986109779840, Gaia SolId: 1636148068921376768
+            #   -  if nullable conversion is done after join, the Gaia Source somehow becomes 1695777986109779968
+            as_nullable_int(df_aux, ["Source", "SolID"])
             df_pht = left_outer_join_by_column_merge(
                 df_pht, df_aux, join_col_main="tic_id", join_col_aux="TIC_ID", prefix_aux="GAIA"
             )
-            # Misc. type fixing after join
-            as_nullable_int(df_pht, ["GAIA_Source", "GAIA_SolID"])  # some cells is NA, so convert it to nullable integer
 
             # placeholders for UI to construct links to GAIA
             # Note: we use the column GAIA_DR3Name as the basis, rather than GAIA_Source, because empirically,
