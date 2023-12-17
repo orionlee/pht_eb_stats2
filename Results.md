@@ -60,7 +60,7 @@ See [participants dashboard notebook](src/dashboard_participants.ipynb) for more
 * [ ] Review tag tallying and computation of `eb_score`
   * [ ] Add tags to be counted, in particular, `#EB` and `#E.B.` are employed by some users, but they are not treated as tags in Zooniverse.
     * There are ~3000 such comments, while there are about ~60000 eclipsingbinary comments.
-    * other tags to consider: #possibleEB
+    * other tags to consider: `#possibleEB`, `#eclipsing_binary`, `#eclipsing_binaries`, `#eclipsingbinaries`, `#eclipsing-binaries`
   * [ ] Handle cases that users tag a subject both as eclipsing binary and transit. (Currently it is treated as a neutral vote)
   * [ ] Consider additional tags counted as dissenting voices. Candidates include `#rr-lyrae` (and possibly other pulsators / rotators)
   * [ ] Should we consider `#contamination` and/or `#NEB` ?
