@@ -1,4 +1,4 @@
-TIC,Sector Example,PHT Subject Example,Is EB In Catalogs,Disposition,Type,NegReasons,VSX Submission,In TESSEBs1-26,TESS EB Note,Old Vetting Template,Note,VSX oid,Link to Example,VSX Link,Vetting Batch
+TIC,Sector Example,PHT Subject Example,Listed as EB In Catalogs,Disposition,Type,NegReasons,VSX Submission,In TESSEBs1-26,TESS EB Note,Old Vetting Template,Note,VSX oid,Link to Example,VSX Link,Vetting Batch
 143669444,7,32026607,F,Unsure,EB:|ELL:,"Type,",,Y,EB or ELL,T,"WIP: Possibly EB  or ELL 
 in VSX as ELL/ACV . Gaia DR3 Variable classifies as SPB.
 SO: It looks like EB or ELL, I would need a phase plot and an idea of the amplitude in mangitudes.",,32026607,,"top 20 , not in other catalogs (SIMBAD, VSX, ASAS-SN; TESSEB is not part of the criteira)"
@@ -46,7 +46,7 @@ EA + possibly additional stars. 1 - 2 additional dips in sector 7 observation, W
 268404844,25,48226771,-,Candidate,EA,,Skip-tesseb,Y,"duration too short for -pf (2.65h), too long for -2g (3.96h) . Real: 3.11h",,Tidal-induced variability with similar period and ~0.6% amplitude.,,48226771,,
 288100746,37,62817178,-,Candidate,EA,,skip-gaia,NA,,, Magitude range maxium is uncertain. Unclear Some the peaks in TESS sector 10 (~BTJD1570 - BTJD 1596) are real or just processing errors. Tidal-induced variability with similar period and ~1% amplitude. Gaid DR3 Variable suggests additional variability with 0.426 hour period (in its short-timescale sources) ,,62817178,,
 317090832,33,56957057,-,Candidate,EA+PULS,,todo0,NA,,,"Eccentric, min II phase: 0.47 . Min II has longer duration. Rapid (solar type) oscillation with ~1.15 hour period and ~0.8% amplitude",,56957057,,
-72331,38,64610692,-,FP,,"BKG,",NA,NA,,,FP. SSO. See per-pixel plot. would have been removed from the list if we count #background-event as down vote.,,64610692,,"first 20, eb_score == 3, not in other catalogs"
+72331,38,64610692,-,FP,,"BKG,",NA,NA,,,FP. SSO. See per-pixel plot. would have been removed from the list if we count #background-event as down vote.,,64610692,,"first 21, eb_score == 3, not in other catalogs"
 927257,34,58384662,-,Candidate:,EA/RS:,,todo1,NA,,,"RS: sub type uncertain. Mag. range: 12.16 - 12.24 TESS . Rotational period: 1.7981 d, amplitude: ~1% .",,58384662,,
 1220444,5,30861787,-,Candidate,EA+ROT,,todo2,Y,,,"data limited (9 cycles), but did span ~2 years . Mag. range: 8.96 - 9.02 TESS . Rough rotational period: 2.67195 d .",,30861787,,
 2013258,19,40154642,-,FP,,"BKG,",NA,NA,,,FP. Some widespread background event. See per-pixel plot.,,40154642,,
@@ -56,8 +56,14 @@ EA + possibly additional stars. 1 - 2 additional dips in sector 7 observation, W
 4918918,21,41023496,-,FP,,"NEB,",NA,N,,,"NEB. The contaminant is TIC 4918919, ~57arcsec away. Might have been ruled out if tags such as #NEB #conttamination are considered.",,41023496,,
 5360702,35,60024707,-,Candidate,EA,,todo1.5,NA,,,"Grazying EB, with shallow eclipse depth (Min I ~ 1%) . Min II durtaion very rough estimate.",,60024707,,
 5390942,36,60859774,-,Candidate,EA,,todo1.5,NA,,,Min II identification uncertain . Additional variability unlikely. The peak at 1.30 d d period is likely to be insignificant .,,60859774,,
+5703872,9,41434211,-,Candidate:,EA+ROT:,,todo2,Y,"duration too short for -pf, too long for -2g",,"Mag. range: 7.87 - 7.97 TESS . Possible rotational variability, with a rough period: ~14 d .",,41434211,,
 8153514,21,41037854,-,Candidate?,EA:,,NA,N,,,"Single eclipse over 3 days. Host star K-type giant, likely to be a non singler star, with RUWE: 1.734, sepsi: 49.064, e_RV: 2.52 km/s in Gaia DR3.",,41037854,,
-8423012,38,64595226,-,Unsure,EA:,,,NA,,,"4 comparable EA-like dips observed, but no coherent period is deduced.",,64595226,,
-9029822,29,51636813,-,Candidate?,EA,NEB?,,NA,has explicit In Catalog?=False in live DB,,"NEB concern with TIC 2052363987 (2"" away). Mag. range: 11.87 - 12.18 TESS . Might have rotaional variablity with a rough period: 4.86029 d .",,51636813,,
+8423012,38,64595226,-,Candidate,EA,,todo2.5,NA,,,"The period is based on 4 eclipses in 3 cycles only, but is quite solid. Designation of deep/shallow eclipses are tentative, as both sets have similar depths.",,64595226,,
+9029822,29,51636813,-,Candidate?,EA,"NEB?,",,NA,has explicit In Catalog?=False in live DB,,"NEB concern with TIC 2052363987 (2"" away). Mag. range: 11.87 - 12.18 TESS . Might have rotaional variablity with a rough period: 4.86029 d .",,51636813,,
 9054318,29,51636814,-,Candidate,EA,,todo1.5,NA,,,Possibly rough rotational period: 9.22 d .,,51636814,,
-12007147,35,60848084,-,FP,,NEB,NA,NA,,,"NEB. Contaminant: TIC 12007141 (Tmag 14.07, 13.79 arcsec away)",,60848084,,
+12007147,35,60848084,-,FP,,"NEB,",NA,NA,,,"NEB. Contaminant: TIC 12007141 (Tmag 14.07, 13.79 arcsec away)",,60848084,,
+12631605,4,30276680,-,Candidate:,EA+ROT+IB:,,todo1.5,Y,"poor duration for -2g, no duration for -pf",,"Mag. range: 10.07 - 10.46 TESS . Rough rotational period: 0.70539 d . Some flares, largest amplitude: 6%. Unsure how to classify the flares (not UV type).",,30276680,,
+12931121,29,51635631,-,Candidate?,EA,"S,",NA,NA,,,"Period unknown, with 2 eclipses 700+ days apart. Binarity suggsted by 2019A&A...623A..72K and Gaia DR3 (e_RV) . Possibly rotational variability with rough period: 6.80 d .",,51635631,,
+13092260,2,28587549,-,Candidate,EA,,todo1.5,Y,"duration too short for -pf, too long for -2g",,"Only 9 cycles observed, but spans over 1854 days.",,28587549,,
+13098251,29,51635529,-,Candidate?,EA,"S,",NA,NA,,,"Single eclipse . Depth implies planetary transit is possible, but TCE's red flag on ModelChiSquare2-sig and Gaia DR3 RUWE / e_RV both would suggest a stellar companion.",,51635529,,
+14081980,6,31391048,-,FP,,"NEB,",NA,Y,NEB,,"NEB. Contaminant: TIC 14081981, 21arcsec away",,31391048,,
