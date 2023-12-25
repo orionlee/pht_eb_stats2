@@ -3,6 +3,7 @@
 #
 
 from collections.abc import Sequence
+import pathlib
 import re
 from types import SimpleNamespace
 import warnings
@@ -22,6 +23,9 @@ import download_utils
 import lightkurve as lk
 import lightkurve_ext as lke
 import tess_dv
+
+# Ues to resolve data files relative the the module (used by MomentumDumpsAccessor)
+_MODULE_PATH_ = pathlib.Path(__file__).parent.resolve()
 
 #
 # Misc constants
@@ -431,7 +435,7 @@ class MomentumDumpsAccessor:
 
         # cls._mom_dumps_tab = pd.read_csv("data/tess_mom_dumps.txt", sep="\t")
         # I use np.genfromtxt rather than pandas, as filtering from numpy array filtering is easier for the use case
-        cls._mom_dumps_tab = np.genfromtxt("data/tess_mom_dumps.txt", delimiter="\t", names=True)
+        cls._mom_dumps_tab = np.genfromtxt(f"{_MODULE_PATH_}/data/tess_mom_dumps.txt", delimiter="\t", names=True)
 
     @classmethod
     def refresh(cls):
@@ -653,6 +657,8 @@ def _to_stellar_meta(target):
             equinox=equinox,
             pmra=pmra,
             pmdec=pmdec,
+            e_pmra=np.nan,
+            e_pmdec=np.nan,
             tess_mag=tess_mag,
             label=label,
             # additional attributes for get_tic_meta_in_html() use case
@@ -669,6 +675,7 @@ def _to_stellar_meta(target):
         row = result[0]
         ra, dec, equinox = row["ra"], row["dec"], 2000
         pmra, pmdec = row["pmRA"], row["pmDEC"]
+        e_pmra, e_pmdec = row["e_pmRA"], row["e_pmDEC"]
         tess_mag = row["Tmag"]
         tic = row["ID"]
         if tic is not None:
@@ -682,6 +689,8 @@ def _to_stellar_meta(target):
             equinox=equinox,
             pmra=pmra,
             pmdec=pmdec,
+            e_pmra=e_pmra,
+            e_pmdec=e_pmdec,
             tess_mag=tess_mag,
             label=label,
             gaiadr2_id=gaiadr2_id,
@@ -694,7 +703,7 @@ def _to_stellar_meta(target):
 
 
 def decode_gaiadr3_nss_flag(nss_flag):
-    """Decode NSS (NON_SINGLE_STAR) flag in Gaia DR3.
+    """Decode NSS (NON_SINGLE_STAR) flag in Gaia DR3 Main.
     Reference:
     https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_main_source_catalogue/ssec_dm_gaia_source.html#p344
     """
@@ -709,11 +718,79 @@ def decode_gaiadr3_nss_flag(nss_flag):
     return flags
 
 
+def decode_gaiadr3_nss_solution_flag(sol_flag):
+    """Decode the flag for NSS solution in Gaia DR3 NSS 2 body orbit tables.
+    Not to be confused with the flag in Gaia DR3 Main table.
+
+    Reference:
+    https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_non--single_stars_tables/ssec_dm_nss_two_body_orbit.html#p155
+    """
+
+    bits_meaning = {
+        # for AB
+        0: "AB_No_solution_searched",
+        1: "AB_No_stochastic_solution_searched",
+        2: "AB_Failure_to_compute_a_stochastic_solution",
+        6: "AB_RV_available",
+        7: "AB_RV_used_for_perspective_acceleration_correction",
+        # for SB
+        8: "SB_BAD_UNCHECKED_NUMBER_OF_TRANSITS",
+        9: "SB_NO_MORE_VARIABLE_AFTER_FILTERING",
+        10: "SB_BAD_CHECKED_NUMBER_OF_TRANSITS",
+        11: "SB2_REDIRECTED_TO_SB1_CHAIN_NOT_ENOUGH_COUPLE_MEASURES",
+        12: "SB2_REDIRECTED_TO_SB1_CHAIN_PERIODS_NOT_COHERENT",
+        13: "SB_NO_SIGNIFICANT_PERIODS_CAN_BE_FOUND",
+        14: "SB_REFINED_SOLUTION_DOES_NOT_CONVERGE",
+        15: "SB_REFINED_SOLUTION_SINGULAR_VARIANCE_COVARIANCE_MATRIX",
+        16: "SB_CIRCULAR_SOLUTION_SINGULAR_VARIANCE_COVARIANCE_MATRIX",
+        17: "SB_TREND_SOLUTION_SINGULAR_VARIANCE_COVARIANCE_MATRIX",
+        18: "SB_REFINED_SOLUTION_NEGATIVE_DIAGONAL_OF_VARIANCE_COVARIANCE_MATRIX",
+        19: "SB_CIRCULAR_SOLUTION_NEGATIVE_DIAGONAL_OF_VARIANCE_COVARIANCE_MATRIX",
+        20: "SB_TREND_SOLUTION_NEGATIVE_DIAGONAL_OF_VARIANCE_COVARIANCE_MATRIX",
+        21: "SB_CIRCULAR_SOLUTION_DOES_NOT_CONVERGE",
+        22: "SB_LUCY_TEST_APPLIED",
+        23: "SB_TREND_SOLUTION_NOT_APPLIED",
+        24: "SB_SOLUTION_OUTSIDE_E_LOGP_ENVELOP",
+        25: "SB_PERIOD_FOUND_IN_CU7_PERIODICITY",
+        26: "SB_FORTUITOUS_SB2",
+        # for EB
+        32: "EB_No_variance-covariance_matrix",
+        # for Combined solutions
+        48: "CO_NOCOMBINATION_FOUND",
+        49: "CO_BAD_GOF_COMBINATION",
+        50: "CO_WRONG_COMPONENT_COMBINATION",
+        51: "CO_SB2_TREATED_AS_SB1",
+        52: "CO_STOCHA_TO_ORBITAL",
+        53: "CO_STOCHA_TO_MULTIPLE",
+        54: "CO_ORBITALALTERNATIVE_TO_ORBITAL",
+        55: "CO_TRIPLE_COMBINATION",
+        56: "CO_TREND_COMBINATION",
+        57: "CO_DU434_INPUT_USED",
+    }
+
+    flags = []
+    for bit, meaning in bits_meaning.items():
+        if sol_flag & 2**bit > 0:
+            flags.append(meaning)
+    return flags
+
+
+def _is_all_finite(num_or_num_list):
+    def is_one_finite(num):
+        return num is not None and np.isfinite(num)
+
+    if not isinstance(num_or_num_list, (list, tuple, np.ndarray)):
+        num_or_num_list = [num_or_num_list]
+    return np.all([is_one_finite(n) for n in num_or_num_list])
+
+
 def search_gaiadr3_of_tics(
     targets,
     radius_arcsec=15,
     magnitude_range=2.5,
+    pm_error_factor=None,  # e.g., 3
     pm_range_fraction=0.25,
+    pm_range_minimum=1.0,
     warn_if_all_filtered=True,
     compact_columns=True,
     also_return_html=True,
@@ -728,6 +805,16 @@ def search_gaiadr3_of_tics(
     target : int, LightCurve, TargetPixelFile, or a list of them
         targets to be searched. Either the TIC, or LightCurve/TargetPixelFile of a TIC.
 
+    pm_error_factor, pm_range_fraction, pm_range_minimum
+        range of proper motion to include in the search result,
+        with the pmRA / pmDEC of the target as the reference.
+        `pm_error_factor` is used if e_pmRA, e_pmDEC is present (case the target is from TIC catalog).
+        The pmRA range will be `e_pmRA` * `pm_error_factor` (ditto for pmDEC)
+        `pm_range_fraction` is used if e_pmRA, e_pmDEC is not present.
+        The pmRA range will be `pmRA` * `pm_range_fraction` (ditto for pmDEC)
+        In all cases if `pm_range_minimum` is defined, the range will have a minimum of
+        `+/- pm_range_minimum`.
+        It is useful to handle the case the derived range is very small and overly restrictive.
     """
 
     # OPEN:
@@ -755,6 +842,27 @@ def search_gaiadr3_of_tics(
         else:
             lower_limit, upper_limit = None, None
 
+        pmra_lower, pmra_upper, pmdec_lower, pmdec_upper = None, None, None, None
+        if _is_all_finite([pm_error_factor, t.pmra, t.e_pmra]):
+            pmra_range = t.e_pmra * pm_error_factor
+            if pm_range_minimum is not None:
+                pmra_range = max(pmra_range, pm_range_minimum)
+            pmra_lower, pmra_upper = t.pmra - pmra_range, t.pmra + pmra_range
+            pmdec_range = t.e_pmdec * pm_error_factor
+            if pm_range_minimum is not None:
+                pmdec_range = max(pmdec_range, pm_range_minimum)
+            pmdec_lower, pmdec_upper = t.pmdec - pmdec_range, t.pmdec + pmdec_range
+        elif _is_all_finite([pm_range_fraction, t.pmra]):
+            pmra_range = np.abs(t.pmra) * pm_range_fraction
+            if pm_range_minimum is not None:
+                pmra_range = max(pmra_range, pm_range_minimum)
+            pmra_lower, pmra_upper = t.pmra - pmra_range, t.pmra + pmra_range
+            pmdec_range = np.abs(t.pmdec) * pm_range_fraction
+            if pm_range_minimum is not None:
+                pmdec_range = max(pmdec_range, pm_range_minimum)
+            pmdec_lower, pmdec_upper = t.pmdec - pmdec_range, t.pmdec + pmdec_range
+
+        # print("DBG pm range for filter -  ra:", t.pmra, pmra_lower, pmra_upper, "dec: ", t.pmdec, pmdec_lower, pmdec_upper)
         a_result = lke.search_nearby(
             t.ra,
             t.dec,
@@ -765,7 +873,10 @@ def search_gaiadr3_of_tics(
             magnitude_upper_limit=upper_limit,
             pmra=t.pmra,
             pmdec=t.pmdec,
-            pm_range_fraction=pm_range_fraction,
+            pmra_lower=pmra_lower,
+            pmra_upper=pmra_upper,
+            pmdec_lower=pmdec_lower,
+            pmdec_upper=pmdec_upper,
             warn_if_all_filtered=warn_if_all_filtered,
         )
 
@@ -860,9 +971,11 @@ def search_gaiadr3_of_tics(
 
         # linkify Gaia DR3 ID
         for id in result["Source"]:
+            # the long URL includes both Gaia DR3 Main and Astrophysical, with frequently used columns included.
+            gaiadr3_url = f"https://vizier.cds.unistra.fr/viz-bin/VizieR-4?-ref=VIZ6578bb1b54eda&-to=-4b&-from=-4&-this=-4&%2F%2Fsource=I%2F355%2Fgaiadr3&%2F%2Ftables=I%2F355%2Fgaiadr3&%2F%2Ftables=I%2F355%2Fparamp&-out.max=50&%2F%2FCDSportal=http%3A%2F%2Fcdsportal.u-strasbg.fr%2FStoreVizierData.html&-out.form=HTML+Table&%2F%2Foutaddvalue=default&-order=I&-oc.form=sexa&-out.src=I%2F355%2Fgaiadr3%2CI%2F355%2Fparamp&-nav=cat%3AI%2F355%26tab%3A%7BI%2F355%2Fgaiadr3%7D%26tab%3A%7BI%2F355%2Fparamp%7D%26key%3Asource%3DI%2F355%2Fgaiadr3%26HTTPPRM%3A&-c=&-c.eq=J2000&-c.r=++2&-c.u=arcmin&-c.geom=r&-source=&-x.rs=10&-source=I%2F355%2Fgaiadr3+I%2F355%2Fparamp&-out.orig=standard&-out=RA_ICRS&-out=DE_ICRS&-out=Source&Source={id}&-out=Plx&-out=PM&-out=pmRA&-out=pmDE&-out=sepsi&-out=IPDfmp&-out=RUWE&-out=Dup&-out=Gmag&-out=BPmag&-out=RPmag&-out=BP-RP&-out=RV&-out=e_RV&-out=VarFlag&-out=NSS&-out=XPcont&-out=XPsamp&-out=RVS&-out=EpochPh&-out=EpochRV&-out=MCMCGSP&-out=MCMCMSC&-out=Teff&-out=logg&-out=%5BFe%2FH%5D&-out=Dist&-out=A0&-out=HIP&-out=PS1&-out=SDSS13&-out=SKYM2&-out=TYC2&-out=URAT1&-out=AllWISE&-out=APASS9&-out=GSC23&-out=RAVE5&-out=2MASS&-out=RAVE6&-out=RAJ2000&-out=DEJ2000&-out=Pstar&-out=PWD&-out=Pbin&-out=ABP&-out=ARP&-out=GMAG&-out=Rad&-out=SpType-ELS&-out=Rad-Flame&-out=Lum-Flame&-out=Mass-Flame&-out=Age-Flame&-out=Flags-Flame&-out=Evol&-out=z-Flame&-meta.ucd=0&-meta=0&-usenav=1&-bmark=GET"
             html = html.replace(
                 f">{id}<",
-                f"><a target='vizier_gaia_dr3' href='https://vizier.u-strasbg.fr/viz-bin/VizieR-S?Gaia%20DR3%20{id}'>{id}</a><",
+                f"><a target='vizier_gaia_dr3' href='{gaiadr3_url}'>{id}</a><",
             )
 
         # remove the Table length=n message
