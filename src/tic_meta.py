@@ -38,9 +38,12 @@ def get_and_save_tic_meta_of_all(
 ):
     ids = load_tic_ids_from_file()
     num_chunks = np.floor(len(ids) / chunk_size)
+    if num_chunks == 0:
+        num_chunks += 1  # handle boundary condition
     # the actual trunk size could be slightly different, as array_split would split it to equal size chunk
     id_chunks = np.array_split(ids, num_chunks)
     max_chunk_id = len(id_chunks) - 1  # largest possible value
+    ## print("DBG:", max_chunk_id, num_chunks, len(ids), chunk_size)
 
     if end_chunk_inclusive is None:
         end_chunk_inclusive = max_chunk_id
@@ -61,9 +64,9 @@ def get_and_save_tic_meta_of_all(
             process_result_func=lambda res, call_i, call_kwargs: save_tic_meta(res, csv_mode="w", csv_header=True),
         )
 
-        # Process the rest of the chunks (append to the existing csv)
-        kwargs_list = [dict(tics=ids) for ids in id_chunks[1:]]
-        bulk_process(_get_tic_meta_of_tics, kwargs_list, process_result_func=save_tic_meta)
+    # Process the rest of the chunks (append to the existing csv)
+    kwargs_list = [dict(tics=ids) for ids in id_chunks[1:]]
+    bulk_process(_get_tic_meta_of_tics, kwargs_list, process_result_func=save_tic_meta)
 
 
 def load_tic_meta_table_from_file(csv_path="../data/tic_meta.csv"):
